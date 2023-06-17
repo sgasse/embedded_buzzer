@@ -4,8 +4,6 @@
 
 use core::num::Wrapping;
 
-use buzzer_board::net::net_task;
-use buzzer_board::singleton;
 use defmt::*;
 use embassy_executor::Spawner;
 use embassy_net::tcp::client::{TcpClient, TcpClientState};
@@ -22,8 +20,31 @@ use embedded_io::asynch::Write;
 use embedded_nal_async::{Ipv4Addr, SocketAddr, SocketAddrV4, TcpConnect};
 use heapless::Vec;
 use rand_core::RngCore;
+use serde::{Deserialize, Serialize};
+use static_cell::StaticCell;
 use {defmt_rtt as _, panic_probe as _};
 
+macro_rules! singleton {
+    ($val:expr) => {{
+        type T = impl Sized;
+        static STATIC_CELL: StaticCell<T> = StaticCell::new();
+        let (x,) = STATIC_CELL.init(($val,));
+        x
+    }};
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+struct Point {
+    x: i32,
+    y: i32,
+}
+
+type Device = Ethernet<'static, ETH, GenericSMI>;
+
+#[embassy_executor::task]
+async fn net_task(stack: &'static Stack<Device>) -> ! {
+    stack.run().await
+}
 #[embassy_executor::main]
 async fn main(spawner: Spawner) -> ! {
     let mut config = Config::default();
