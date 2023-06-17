@@ -20,7 +20,6 @@ use embedded_io::asynch::Write;
 use embedded_nal_async::{Ipv4Addr, SocketAddr, SocketAddrV4, TcpConnect};
 use heapless::Vec;
 use rand_core::RngCore;
-use serde::{Deserialize, Serialize};
 use static_cell::StaticCell;
 use {defmt_rtt as _, panic_probe as _};
 
@@ -31,12 +30,6 @@ macro_rules! singleton {
         let (x,) = STATIC_CELL.init(($val,));
         x
     }};
-}
-
-#[derive(Serialize, Deserialize, Debug)]
-struct Point {
-    x: i32,
-    y: i32,
 }
 
 type Device = Ethernet<'static, ETH, GenericSMI>;
@@ -52,7 +45,6 @@ async fn main(spawner: Spawner) -> ! {
     config.rcc.hclk = Some(mhz(200));
     config.rcc.pll1.q_ck = Some(mhz(100));
     let p = embassy_stm32::init(config);
-    info!("Hello World!");
 
     // Generate random seed.
     let mut rng = Rng::new(p.RNG);

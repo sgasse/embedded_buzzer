@@ -3,6 +3,13 @@ name = "buzzer_board"
 version = "0.1.0"
 edition = "2021"
 
+# Use this for the rust-analyzer in VS Code:
+#  "rust-analyzer.check.allTargets": false,
+#  "rust-analyzer.check.extraArgs": [
+#      "--target",
+#      "thumbv7em-none-eabihf"
+#  ],
+
 # We require MII PHY support for the ethernet interface
 [patch."https://github.com/embassy-rs/embassy.git"]
 embassy-stm32 = { git = "https://github.com/KloolK/embassy.git", branch = "mii-phy" }

@@ -4,24 +4,17 @@
 
 use core::num::Wrapping;
 
-use buzzer_board::net::net_task;
-use buzzer_board::singleton;
+use buzzer_board::net::{init_net_stack, net_task};
+use buzzer_board::{gen_random_seed, NetPeripherals};
 use defmt::*;
 use embassy_executor::Spawner;
 use embassy_net::tcp::client::{TcpClient, TcpClientState};
 use embassy_net::tcp::Error::ConnectionReset;
-use embassy_net::{Ipv4Address, Ipv4Cidr, Stack, StackResources};
-use embassy_stm32::eth::generic_smi::GenericSMI;
-use embassy_stm32::eth::{Ethernet, PacketQueue};
-use embassy_stm32::peripherals::ETH;
-use embassy_stm32::rng::Rng;
 use embassy_stm32::time::mhz;
-use embassy_stm32::{interrupt, Config};
+use embassy_stm32::Config;
 use embassy_time::{Duration, Timer};
 use embedded_io::asynch::Write;
 use embedded_nal_async::{Ipv4Addr, SocketAddr, SocketAddrV4, TcpConnect};
-use heapless::Vec;
-use rand_core::RngCore;
 use {defmt_rtt as _, panic_probe as _};
 
 #[embassy_executor::main]
@@ -31,54 +24,28 @@ async fn main(spawner: Spawner) -> ! {
     config.rcc.hclk = Some(mhz(200));
     config.rcc.pll1.q_ck = Some(mhz(100));
     let p = embassy_stm32::init(config);
-    info!("Hello World!");
 
-    // Generate random seed.
-    let mut rng = Rng::new(p.RNG);
-    let mut seed = [0; 8];
-    rng.fill_bytes(&mut seed);
-    let seed = u64::from_le_bytes(seed);
+    let seed = gen_random_seed(p.RNG);
 
-    let eth_int = interrupt::take!(ETH);
-    let mac_addr = [0x00, 0x00, 0xDE, 0xAD, 0xBE, 0xEF];
+    let net_p = NetPeripherals {
+        eth: p.ETH,
+        pa1: p.PA1,
+        pa2: p.PA2,
+        pa7: p.PA7,
+        pb0: p.PB0,
+        pb1: p.PB1,
+        pc1: p.PC1,
+        pc2: p.PC2,
+        pc3: p.PC3,
+        pc4: p.PC4,
+        pc5: p.PC5,
+        pe2: p.PE2,
+        pg11: p.PG11,
+        pg12: p.PG12,
+        pg13: p.PG13,
+    };
 
-    let device = Ethernet::new(
-        singleton!(PacketQueue::<16, 16>::new()),
-        p.ETH,
-        eth_int,
-        p.PA1,
-        p.PC3,
-        p.PA2,
-        p.PC1,
-        p.PA7,
-        p.PC4,
-        p.PC5,
-        p.PB0,
-        p.PB1,
-        p.PG13,
-        p.PG12,
-        p.PC2,
-        p.PE2,
-        p.PG11,
-        GenericSMI,
-        mac_addr,
-        1,
-    );
-
-    // Set laptop IP to 192.168.100.1 and listen with `netcat -l 8000`
-    let config = embassy_net::Config::Static(embassy_net::StaticConfig {
-        address: Ipv4Cidr::new(Ipv4Address::new(192, 168, 100, 5), 24),
-        dns_servers: Vec::new(),
-        gateway: Some(Ipv4Address::new(192, 168, 100, 1)),
-    });
-
-    // Init network stack
-    let stack = &*singleton!(Stack::new(
-        device,
-        config,
-        singleton!(StackResources::<2>::new()),
-        seed
-    ));
+    let stack = init_net_stack(net_p, seed);
 
     // Launch network task
     unwrap!(spawner.spawn(net_task(&stack)));
