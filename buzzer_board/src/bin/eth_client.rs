@@ -5,7 +5,7 @@
 use core::num::Wrapping;
 
 use buzzer_board::net::{init_net_stack, net_task};
-use buzzer_board::{gen_random_seed, NetPeripherals};
+use buzzer_board::{create_net_peripherals, gen_random_seed};
 use defmt::*;
 use embassy_executor::Spawner;
 use embassy_net::tcp::client::{TcpClient, TcpClientState};
@@ -27,24 +27,7 @@ async fn main(spawner: Spawner) -> ! {
 
     let seed = gen_random_seed(p.RNG);
 
-    let net_p = NetPeripherals {
-        eth: p.ETH,
-        pa1: p.PA1,
-        pa2: p.PA2,
-        pa7: p.PA7,
-        pb0: p.PB0,
-        pb1: p.PB1,
-        pc1: p.PC1,
-        pc2: p.PC2,
-        pc3: p.PC3,
-        pc4: p.PC4,
-        pc5: p.PC5,
-        pe2: p.PE2,
-        pg11: p.PG11,
-        pg12: p.PG12,
-        pg13: p.PG13,
-    };
-
+    let net_p = create_net_peripherals!(p);
     let stack = init_net_stack(net_p, seed);
 
     // Launch network task
@@ -97,4 +80,9 @@ async fn main(spawner: Spawner) -> ! {
             Timer::after(Duration::from_secs(1)).await;
         }
     }
+}
+
+#[embassy_executor::task]
+pub async fn rx_task() -> ! {
+    loop {}
 }

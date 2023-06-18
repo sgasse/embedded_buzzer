@@ -43,3 +43,26 @@ pub struct NetPeripherals {
     pub pg12: PG12,
     pub pg13: PG13,
 }
+
+#[macro_export]
+macro_rules! create_net_peripherals {
+    ($peripherals:expr) => {
+        buzzer_board::NetPeripherals {
+            eth: $peripherals.ETH,
+            pa1: $peripherals.PA1,
+            pa2: $peripherals.PA2,
+            pa7: $peripherals.PA7,
+            pb0: $peripherals.PB0,
+            pb1: $peripherals.PB1,
+            pc1: $peripherals.PC1,
+            pc2: $peripherals.PC2,
+            pc3: $peripherals.PC3,
+            pc4: $peripherals.PC4,
+            pc5: $peripherals.PC5,
+            pe2: $peripherals.PE2,
+            pg11: $peripherals.PG11,
+            pg12: $peripherals.PG12,
+            pg13: $peripherals.PG13,
+        }
+    };
+}
