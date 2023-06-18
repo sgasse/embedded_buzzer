@@ -1,8 +1,8 @@
 use std::{net::SocketAddr, num::Wrapping, time::Duration};
 
 use axum::{routing::get, Router};
-use postcard::to_allocvec;
-use server::GameInfo;
+use common::Message;
+use postcard::{from_bytes, to_allocvec};
 use tokio::{
     io::{AsyncReadExt, AsyncWriteExt},
     net::{TcpListener, TcpStream},
@@ -47,11 +47,16 @@ async fn process_incoming(mut socket: TcpStream) {
     loop {
         match socket.read(&mut buf).await {
             Ok(num_read) => {
-                println!(
-                    "Read {} bytes: {}",
-                    num_read,
-                    String::from_utf8_lossy(&buf[0..num_read])
-                );
+                // println!("Read {} bytes", num_read,);
+
+                match from_bytes::<Message>(&buf[0..num_read]) {
+                    Ok(message) => {
+                        println!("Got message {message:?}");
+                    }
+                    Err(e) => {
+                        println!("Error in deserializing received message: {e}");
+                    }
+                }
             }
             Err(e) => {
                 println!("Error on reading data: {e}");
@@ -65,23 +70,17 @@ async fn process_incoming(mut socket: TcpStream) {
 async fn process_outgoing(mut socket: TcpStream) {
     let mut counter = Wrapping(0);
 
-    let init_game = GameInfo {
-        instruction: 0,
-        id: counter.0,
-    };
+    let init_game = Message::InitGame;
     let serialized = to_allocvec(&init_game).unwrap();
     if let Err(e) = socket.write_all(&serialized).await {
         println!("Error in sending init data: {e}");
     }
 
     loop {
-        let ping_game = GameInfo {
-            instruction: 1,
-            id: counter.0,
-        };
-        match socket.write_all(&to_allocvec(&ping_game).unwrap()).await {
+        let ping = Message::Ping(counter.0);
+        match socket.write_all(&to_allocvec(&ping).unwrap()).await {
             Ok(()) => {
-                println!("Wrote data with counter {}", counter.0);
+                // println!("Wrote data with counter {}", counter.0);
             }
             Err(e) => {
                 println!("Error in writing: {e}");

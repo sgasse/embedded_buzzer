@@ -1,6 +1,7 @@
-use core::num::Wrapping;
+use core::sync::atomic::Ordering;
 
-use crate::{singleton, GameInfo, NetPeripherals};
+use crate::{singleton, NetPeripherals, START_TIME};
+use common::{ButtonPress, Message};
 use defmt::*;
 use embassy_net::tcp::client::{TcpClient, TcpClientState};
 use embassy_net::{tcp::Error::ConnectionReset, Ipv4Address, Ipv4Cidr, Stack, StackResources};
@@ -8,11 +9,11 @@ use embassy_stm32::eth::PacketQueue;
 use embassy_stm32::eth::{generic_smi::GenericSMI, Ethernet};
 use embassy_stm32::interrupt;
 use embassy_stm32::peripherals::ETH;
-use embassy_time::{Duration, Timer};
+use embassy_time::{Duration, Instant, Timer};
 use embedded_io::asynch::{Read, Write};
 use embedded_nal_async::{Ipv4Addr, SocketAddr, SocketAddrV4, TcpConnect};
 use heapless::Vec;
-use postcard::from_bytes;
+use postcard::{from_bytes, to_vec};
 
 pub type Device = Ethernet<'static, ETH, GenericSMI>;
 
@@ -92,12 +93,9 @@ pub async fn rx_task(stack: &'static Stack<Device>) -> ! {
             match connection.read(&mut buf[cursor_pos..]).await {
                 Ok(0) => {
                     // Nothing new read, try to deserialize
-                    match from_bytes::<GameInfo>(&buf[0..cursor_pos]) {
-                        Ok(game_info) => {
-                            info!(
-                                "GameInfo inst: {}, id: {}",
-                                game_info.instruction, game_info.id
-                            );
+                    match from_bytes::<Message>(&buf[0..cursor_pos]) {
+                        Ok(message) => {
+                            handle_message(message);
                         }
                         Err(_) => {
                             warn!("Could not deserialize, skipping");
@@ -108,22 +106,21 @@ pub async fn rx_task(stack: &'static Stack<Device>) -> ! {
                     Timer::after(Duration::from_secs(1)).await;
                 }
                 Ok(num_read) => {
-                    info!(
-                        "Read {} bytes: {:?}",
-                        num_read,
-                        buf[cursor_pos..(cursor_pos + num_read)]
-                    );
+                    // info!(
+                    //     "Read {} bytes: {:?}",
+                    //     num_read,
+                    //     buf[cursor_pos..(cursor_pos + num_read)]
+                    // );
                     cursor_pos += num_read;
 
-                    match from_bytes::<GameInfo>(&buf[0..cursor_pos]) {
-                        Ok(game_info) => {
-                            info!(
-                                "GameInfo inst: {}, id: {}",
-                                game_info.instruction, game_info.id
-                            );
+                    match from_bytes::<Message>(&buf[0..cursor_pos]) {
+                        Ok(message) => {
+                            handle_message(message);
                             cursor_pos = 0;
                         }
-                        Err(_) => {}
+                        Err(_) => {
+                            warn!("Could not deserialize, skipping");
+                        }
                     }
                 }
                 Err(e) => {
@@ -133,6 +130,22 @@ pub async fn rx_task(stack: &'static Stack<Device>) -> ! {
                     }
                 }
             }
+        }
+    }
+}
+
+fn handle_message(message: Message) {
+    match message {
+        Message::InitGame => {
+            info!("Received InitGame instruction");
+            let instant_millis = Instant::now().as_millis() as u32;
+            START_TIME.store(instant_millis, Ordering::Release);
+        }
+        Message::Ping(ping_nr) => {
+            info!("Received Ping({})", ping_nr);
+        }
+        Message::ButtonPress(_) => {
+            warn!("Board should not be receiving ButtonPress data");
         }
     }
 }
@@ -156,20 +169,17 @@ pub async fn tx_task(stack: &'static Stack<Device>) -> ! {
         let mut connection = r.unwrap();
         info!("Sender task connected!");
 
-        let mut counter = Wrapping(0_usize);
-
         loop {
-            let mut buf = [0u8; 64];
+            let inst_now = Instant::now().as_millis() as u32;
+            let millis_since_init = inst_now.saturating_sub(START_TIME.load(Ordering::Acquire));
+            let message = Message::ButtonPress(ButtonPress {
+                button_id: 93,
+                millis_since_init,
+            });
 
-            info!("Sending counter {}", counter.0);
+            let serialized: Vec<u8, 20> = to_vec(&message).unwrap();
 
-            let s: &str = format_no_std::show(
-                &mut buf,
-                format_args!("GET /some/path/{counter} HTTP/1.1\r\n\r\n"),
-            )
-            .unwrap();
-
-            let r = connection.write_all(s.as_bytes()).await;
+            let r = connection.write_all(&serialized).await;
             if let Err(e) = r {
                 info!("write error: {:?}", e);
 
@@ -179,8 +189,6 @@ pub async fn tx_task(stack: &'static Stack<Device>) -> ! {
 
                 continue;
             }
-
-            counter += 1;
 
             Timer::after(Duration::from_secs(1)).await;
         }
