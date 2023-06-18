@@ -4,7 +4,7 @@
 
 use core::num::Wrapping;
 
-use buzzer_board::net::{init_net_stack, net_task};
+use buzzer_board::net::{init_net_stack, net_task, rx_task};
 use buzzer_board::{create_net_peripherals, gen_random_seed};
 use defmt::*;
 use embassy_executor::Spawner;
@@ -33,6 +33,8 @@ async fn main(spawner: Spawner) -> ! {
     // Launch network task
     unwrap!(spawner.spawn(net_task(&stack)));
     info!("Network task initialized");
+
+    unwrap!(spawner.spawn(rx_task(&stack)));
 
     static STATE: TcpClientState<1, 1024, 1024> = TcpClientState::new();
     let client = TcpClient::new(&stack, &STATE);
@@ -80,9 +82,4 @@ async fn main(spawner: Spawner) -> ! {
             Timer::after(Duration::from_secs(1)).await;
         }
     }
-}
-
-#[embassy_executor::task]
-pub async fn rx_task() -> ! {
-    loop {}
 }
