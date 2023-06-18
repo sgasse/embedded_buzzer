@@ -9,7 +9,7 @@ use embassy_stm32::eth::{generic_smi::GenericSMI, Ethernet};
 use embassy_stm32::interrupt;
 use embassy_stm32::peripherals::ETH;
 use embassy_time::{Duration, Timer};
-use embedded_io::asynch::Write;
+use embedded_io::asynch::{Read, Write};
 use embedded_nal_async::{Ipv4Addr, SocketAddr, SocketAddrV4, TcpConnect};
 use heapless::Vec;
 
@@ -73,16 +73,55 @@ pub async fn rx_task(stack: &'static Stack<Device>) -> ! {
     loop {
         let addr = SocketAddr::V4(SocketAddrV4::new(Ipv4Addr::new(192, 168, 100, 1), 8001));
 
-        info!("connecting...");
+        info!("Trying to connect receiver task...");
         let r = client.connect(addr).await;
         if let Err(e) = r {
-            error!("connect error: {:?}", e);
+            error!("Connection error: {:?}", e);
             Timer::after(Duration::from_secs(1)).await;
             continue;
         }
 
         let mut connection = r.unwrap();
-        info!("connected!");
+        info!("Receiver task connected!");
+
+        loop {
+            let mut buf = [0u8; 64];
+
+            match connection.read(&mut buf).await {
+                Ok(num_read) => {
+                    info!("Read {} bytes: {:?}", num_read, buf[0..num_read]);
+                }
+                Err(e) => {
+                    warn!("Error while reading: {}", e);
+                    if e == ConnectionReset {
+                        break;
+                    }
+                }
+            }
+
+            Timer::after(Duration::from_secs(1)).await;
+        }
+    }
+}
+
+#[embassy_executor::task]
+pub async fn tx_task(stack: &'static Stack<Device>) -> ! {
+    static STATE: TcpClientState<1, 1024, 1024> = TcpClientState::new();
+    let client = TcpClient::new(&stack, &STATE);
+
+    loop {
+        let addr = SocketAddr::V4(SocketAddrV4::new(Ipv4Addr::new(192, 168, 100, 1), 8000));
+
+        info!("Trying to connect sender task...");
+        let r = client.connect(addr).await;
+        if let Err(e) = r {
+            error!("Connection error: {:?}", e);
+            Timer::after(Duration::from_secs(1)).await;
+            continue;
+        }
+
+        let mut connection = r.unwrap();
+        info!("Sender task connected!");
 
         let mut counter = Wrapping(0_usize);
 
