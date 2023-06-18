@@ -7,4 +7,7 @@ edition = "2021"
 
 [dependencies]
 axum = "0.6.18"
+common = { path = "../common" }
+postcard = { version = "1.0.4", features = ["alloc"] }
+serde = { version = "1.0", features = ["derive"] }
 tokio = { version = "1.28.2", features = ["full"] }

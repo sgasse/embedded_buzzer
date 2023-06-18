@@ -1,6 +1,6 @@
 use core::num::Wrapping;
 
-use crate::{singleton, NetPeripherals};
+use crate::{singleton, GameInfo, NetPeripherals};
 use defmt::*;
 use embassy_net::tcp::client::{TcpClient, TcpClientState};
 use embassy_net::{tcp::Error::ConnectionReset, Ipv4Address, Ipv4Cidr, Stack, StackResources};
@@ -12,6 +12,7 @@ use embassy_time::{Duration, Timer};
 use embedded_io::asynch::{Read, Write};
 use embedded_nal_async::{Ipv4Addr, SocketAddr, SocketAddrV4, TcpConnect};
 use heapless::Vec;
+use postcard::from_bytes;
 
 pub type Device = Ethernet<'static, ETH, GenericSMI>;
 
@@ -84,12 +85,46 @@ pub async fn rx_task(stack: &'static Stack<Device>) -> ! {
         let mut connection = r.unwrap();
         info!("Receiver task connected!");
 
-        loop {
-            let mut buf = [0u8; 64];
+        let mut buf = [0u8; 1000];
+        let mut cursor_pos = 0;
 
-            match connection.read(&mut buf).await {
+        loop {
+            match connection.read(&mut buf[cursor_pos..]).await {
+                Ok(0) => {
+                    // Nothing new read, try to deserialize
+                    match from_bytes::<GameInfo>(&buf[0..cursor_pos]) {
+                        Ok(game_info) => {
+                            info!(
+                                "GameInfo inst: {}, id: {}",
+                                game_info.instruction, game_info.id
+                            );
+                        }
+                        Err(_) => {
+                            warn!("Could not deserialize, skipping");
+                        }
+                    }
+                    cursor_pos = 0;
+
+                    Timer::after(Duration::from_secs(1)).await;
+                }
                 Ok(num_read) => {
-                    info!("Read {} bytes: {:?}", num_read, buf[0..num_read]);
+                    info!(
+                        "Read {} bytes: {:?}",
+                        num_read,
+                        buf[cursor_pos..(cursor_pos + num_read)]
+                    );
+                    cursor_pos += num_read;
+
+                    match from_bytes::<GameInfo>(&buf[0..cursor_pos]) {
+                        Ok(game_info) => {
+                            info!(
+                                "GameInfo inst: {}, id: {}",
+                                game_info.instruction, game_info.id
+                            );
+                            cursor_pos = 0;
+                        }
+                        Err(_) => {}
+                    }
                 }
                 Err(e) => {
                     warn!("Error while reading: {}", e);
@@ -98,8 +133,6 @@ pub async fn rx_task(stack: &'static Stack<Device>) -> ! {
                     }
                 }
             }
-
-            Timer::after(Duration::from_secs(1)).await;
         }
     }
 }

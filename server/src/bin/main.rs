@@ -1,6 +1,8 @@
 use std::{net::SocketAddr, num::Wrapping, time::Duration};
 
 use axum::{routing::get, Router};
+use postcard::to_allocvec;
+use server::GameInfo;
 use tokio::{
     io::{AsyncReadExt, AsyncWriteExt},
     net::{TcpListener, TcpStream},
@@ -62,13 +64,24 @@ async fn process_incoming(mut socket: TcpStream) {
 
 async fn process_outgoing(mut socket: TcpStream) {
     let mut counter = Wrapping(0);
+
+    let init_game = GameInfo {
+        instruction: 0,
+        id: counter.0,
+    };
+    let serialized = to_allocvec(&init_game).unwrap();
+    if let Err(e) = socket.write_all(&serialized).await {
+        println!("Error in sending init data: {e}");
+    }
+
     loop {
-        match socket
-            .write_all(format!("Response {}", counter.0).as_bytes())
-            .await
-        {
+        let ping_game = GameInfo {
+            instruction: 1,
+            id: counter.0,
+        };
+        match socket.write_all(&to_allocvec(&ping_game).unwrap()).await {
             Ok(()) => {
-                println!("Wrote response with counter {}", counter.0);
+                println!("Wrote data with counter {}", counter.0);
             }
             Err(e) => {
                 println!("Error in writing: {e}");

@@ -1,6 +1,8 @@
 #![no_std]
 #![feature(type_alias_impl_trait)]
 
+use core::sync::atomic::AtomicU32;
+
 use embassy_stm32::peripherals::{
     ETH, PA1, PA2, PA7, PB0, PB1, PC1, PC2, PC3, PC4, PC5, PE2, PG11, PG12, PG13, RNG,
 };
@@ -18,6 +20,8 @@ macro_rules! singleton {
         x
     }};
 }
+
+pub static START_TIME: AtomicU32 = AtomicU32::new(0);
 
 pub fn gen_random_seed(rng: RNG) -> u64 {
     let mut rng = Rng::new(rng);
@@ -66,3 +70,5 @@ macro_rules! create_net_peripherals {
         }
     };
 }
+
+pub use common::GameInfo;
