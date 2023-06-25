@@ -1,6 +1,6 @@
 use core::sync::atomic::Ordering;
 
-use crate::{singleton, NetPeripherals, START_TIME};
+use crate::{singleton, NetPeripherals, BUTTON_PRESS_Q, START_TIME};
 use common::{ButtonPress, Message};
 use defmt::*;
 use embassy_net::tcp::client::{TcpClient, TcpClientState};
@@ -170,27 +170,39 @@ pub async fn tx_task(stack: &'static Stack<Device>) -> ! {
         info!("Sender task connected!");
 
         loop {
-            let inst_now = Instant::now().as_millis() as u32;
-            let millis_since_init = inst_now.saturating_sub(START_TIME.load(Ordering::Acquire));
-            let message = Message::ButtonPress(ButtonPress {
-                button_id: 93,
-                millis_since_init,
-            });
+            let reset_time = START_TIME.load(Ordering::Acquire);
+            match BUTTON_PRESS_Q.dequeue() {
+                None => self::panic!("There should never be none"),
+                Some((button_id, press_time)) => {
+                    let millis_since_init = (press_time as u32).saturating_sub(reset_time);
 
-            let serialized: Vec<u8, 20> = to_vec(&message).unwrap();
+                    if millis_since_init == 0 {
+                        warn!(
+                            "Button press {} registered before last reset, skipping",
+                            button_id
+                        );
+                        continue;
+                    }
 
-            let r = connection.write_all(&serialized).await;
-            if let Err(e) = r {
-                info!("write error: {:?}", e);
+                    let message = Message::ButtonPress(ButtonPress {
+                        button_id,
+                        millis_since_init,
+                    });
 
-                if e == ConnectionReset {
-                    break;
+                    let serialized: Vec<u8, 30> = to_vec(&message).unwrap();
+
+                    let r = connection.write_all(&serialized).await;
+                    if let Err(e) = r {
+                        info!("write error: {:?}", e);
+
+                        if e == ConnectionReset {
+                            break;
+                        }
+
+                        continue;
+                    }
                 }
-
-                continue;
             }
-
-            Timer::after(Duration::from_secs(1)).await;
         }
     }
 }

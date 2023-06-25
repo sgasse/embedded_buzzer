@@ -13,7 +13,7 @@ use rand_core::RngCore;
 pub mod button_task;
 pub mod net;
 
-pub static BUTTON_PRESS_Q: Q64<(usize, u64)> = Q64::new();
+pub static BUTTON_PRESS_Q: Q64<(u8, u64)> = Q64::new();
 
 #[macro_export]
 macro_rules! singleton {
