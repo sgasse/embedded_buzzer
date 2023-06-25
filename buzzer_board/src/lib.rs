@@ -7,9 +7,13 @@ use embassy_stm32::peripherals::{
     ETH, PA1, PA2, PA7, PB0, PB1, PC1, PC2, PC3, PC4, PC5, PE2, PG11, PG12, PG13, RNG,
 };
 use embassy_stm32::rng::Rng;
+use heapless::mpmc::Q64;
 use rand_core::RngCore;
 
+pub mod button_task;
 pub mod net;
+
+pub static BUTTON_PRESS_Q: Q64<(usize, u64)> = Q64::new();
 
 #[macro_export]
 macro_rules! singleton {

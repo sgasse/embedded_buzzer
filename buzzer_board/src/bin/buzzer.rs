@@ -2,10 +2,13 @@
 #![no_main]
 #![feature(type_alias_impl_trait)]
 
+use buzzer_board::button_task::debounced_button_presses;
 use buzzer_board::net::{init_net_stack, net_task, rx_task, tx_task};
 use buzzer_board::{create_net_peripherals, gen_random_seed};
 use defmt::*;
 use embassy_executor::Spawner;
+use embassy_stm32::exti::Channel;
+use embassy_stm32::gpio::Pin;
 use embassy_stm32::time::mhz;
 use embassy_stm32::Config;
 use embassy_time::{Duration, Timer};
@@ -30,6 +33,15 @@ async fn main(spawner: Spawner) -> ! {
 
     unwrap!(spawner.spawn(rx_task(&stack)));
     unwrap!(spawner.spawn(tx_task(&stack)));
+
+    unwrap!(spawner.spawn(debounced_button_presses([
+        (p.PG3.degrade(), p.EXTI3.degrade()),
+        (p.PK1.degrade(), p.EXTI1.degrade()),
+        (p.PE6.degrade(), p.EXTI6.degrade()),
+        (p.PB7.degrade(), p.EXTI7.degrade()),
+        (p.PH15.degrade(), p.EXTI15.degrade()),
+        (p.PB4.degrade(), p.EXTI4.degrade()),
+    ])));
 
     loop {
         Timer::after(Duration::from_secs(1)).await;
