@@ -25,7 +25,7 @@ const handleIncomingPress = (msg: MessageEvent<any>) => {
   const reactionTime = buttonPress.millis_since_init - randomCountdownMs;
   const tooEarly = reactionTime <= 0;
 
-  const element = createTableRow(audioName, reactionTime);
+  const element = createTableRow(buttonName, reactionTime);
   const table = tooEarly ? document.getElementById('too-early-table') : document.getElementById('leader-table');
   table?.appendChild(element);
 
@@ -51,7 +51,7 @@ export function initReactionGame() {
     clearTable(tooEarlyTable);
 
     // Random delay between 2 and 5 seconds in ms.
-    randomCountdownMs = (2 + Math.floor(Math.random() * 3))  * 1000;
+    randomCountdownMs = 2000 + Math.floor(Math.random() * 3000);
     backend.send(`{"InitReactionGame":${randomCountdownMs}}`);
 
     setTimeout((_: any) => {

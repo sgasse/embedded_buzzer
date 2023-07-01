@@ -1,35 +1,55 @@
 :root {
-    --custom-green: #3ec795;
+  --custom-green: #3ec795;
+  --csstricks-green: #4caf50;
 }
 
 body {
-    font-family: Arial, Helvetica, sans-serif;
-    font-size: 20px;
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: 20px;
 }
 
 .title {
-    font-size: 2em;
-    font-weight: bold;
-    padding: 20px;
-    margin-top: 5px;
+  font-size: 2em;
+  font-weight: bold;
+  padding: 20px;
+  margin-top: 5px;
 }
 
 .outer {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 20px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+}
+
+.button {
+  background-color: black;
+  border: none;
+  color: white;
+  padding: 15px 32px;
+  text-align: center;
+  text-decoration: none;
+  display: inline-block;
+  font-size: 1em;
+  margin: 4px 2px;
+  cursor: pointer;
+}
+
+.button:hover {
+  background-color: lightgray;
+  color: black;
 }
 
 .table-title {
-    font-weight: bold;
-    padding: 5px;
+  font-weight: bold;
+  padding: 5px;
 }
 
-.leaderboard, .too-early {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
+.leaderboard,
+.too-early {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
 }
 
 .reaction-table {
@@ -37,14 +57,19 @@ body {
   width: 100%;
 }
 
-.reaction-table td, .reaction-table th {
+.reaction-table td,
+.reaction-table th {
   border: 1px solid #ddd;
   padding: 8px;
 }
 
-.reaction-table tr:nth-child(even){background-color: #f2f2f2;}
+.reaction-table tr:nth-child(even) {
+  background-color: #f2f2f2;
+}
 
-.reaction-table tr:hover {background-color: #ddd;}
+.reaction-table tr:hover {
+  background-color: #ddd;
+}
 
 .reaction-table th {
   padding-top: 12px;
@@ -55,27 +80,27 @@ body {
 }
 
 #too-early-table th {
-    background-color: rgb(173, 76, 11);
+  background-color: rgb(173, 76, 11);
 }
 
 #trigger {
-    visibility: hidden;
-    background-color: var(--custom-green);
-    width: 80px;
-    height: 80px;
-    border-radius: 40px;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    font-weight: bold;
-    color: white;
+  visibility: hidden;
+  background-color: var(--custom-green);
+  width: 80px;
+  height: 80px;
+  border-radius: 40px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  font-weight: bold;
+  color: white;
 
-    /* animation: blinky 100ms linear infinite; */
+  /* animation: blinky 100ms linear infinite; */
 }
 
 @keyframes blinky {
-    50% {
-        opacity: 0;
-    }
+  50% {
+    opacity: 0;
+  }
 }
