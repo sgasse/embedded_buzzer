@@ -52,25 +52,12 @@ async fn process_websocket(stream: WebSocket, addr: SocketAddr, uib_router: UiBa
                 Err(e) => println!("Error receiving: {e}"),
             }
         }
-
-        // let mut counter = 0;
-        // loop {
-        //     if let Err(e) = sender
-        //         .send(ws::Message::Text(format!("Msg #{counter}")))
-        //         .await
-        //     {
-        //         println!("Error sending to websocket client {addr}: {e}, closing socket");
-        //         return;
-        //     }
-        //     counter += 1;
-        //     tokio::time::sleep(Duration::from_secs(10)).await;
-        // }
     });
 
     // Loop until a text message is found.
     while let Some(Ok(message)) = receiver.next().await {
         if let ws::Message::Text(msg) = message {
-            println!("Got text message: {}", msg);
+            println!("Frontend (via {}): {}", addr, msg);
         }
     }
 

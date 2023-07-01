@@ -22,7 +22,22 @@ const playButtonPressSound = (msg: MessageEvent<any>) => {
   }
 };
 
-export function init() {
-  backend.send("Init message from frontend");
-  backend.addEventListener("message", playButtonPressSound);
-};
+backend.addEventListener("message", playButtonPressSound);
+
+export function initReactionGame() {
+    // TODO: Init to board
+    backend.send("Init message from frontend");
+
+    let triggerElement = document.getElementById('trigger') as HTMLElement;
+    triggerElement.style.visibility = 'hidden';
+
+    let randomCountdownMs: number = Math.random() * 3000.0;
+
+    setTimeout((_: any) => {
+        let triggerElement = document.getElementById('trigger') as HTMLElement;
+        triggerElement.style.visibility = 'visible';
+
+        backend.send("Countdown finished");
+
+    }, randomCountdownMs);
+}

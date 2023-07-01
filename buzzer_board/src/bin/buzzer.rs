@@ -41,7 +41,7 @@ async fn main(spawner: Spawner) -> ! {
         (p.PB7.degrade(), p.EXTI7.degrade()),
         (p.PH15.degrade(), p.EXTI15.degrade()),
         (p.PB4.degrade(), p.EXTI4.degrade()),
-        // User button
+        // Blue onboard user button `B1`
         (p.PC13.degrade(), p.EXTI13.degrade()),
     ])));
 

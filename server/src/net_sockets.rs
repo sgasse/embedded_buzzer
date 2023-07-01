@@ -15,19 +15,15 @@ pub async fn process_incoming(mut socket: TcpStream, uib_router: UiBackendRouter
 
     loop {
         match socket.read(&mut buf).await {
-            Ok(num_read) => {
-                // println!("Read {} bytes", num_read,);
-
-                match from_bytes::<Message>(&buf[0..num_read]) {
-                    Ok(message) => {
-                        println!("Got message {message:?}");
-                        ui_tx.send(message).ok();
-                    }
-                    Err(e) => {
-                        println!("Error in deserializing received message: {e}");
-                    }
+            Ok(num_read) => match from_bytes::<Message>(&buf[0..num_read]) {
+                Ok(message) => {
+                    println!("Board: {message:?}");
+                    ui_tx.send(message).ok();
                 }
-            }
+                Err(e) => {
+                    println!("Error in deserializing received message: {e}");
+                }
+            },
             Err(e) => {
                 println!("Error on reading data: {e}");
                 return;
