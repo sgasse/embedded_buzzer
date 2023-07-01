@@ -17,6 +17,8 @@ use postcard::{from_bytes, to_vec};
 
 pub type Device = Ethernet<'static, ETH, GenericSMI>;
 
+const THROTTLE_TIME: Duration = Duration::from_millis(10);
+
 #[embassy_executor::task]
 pub async fn net_task(stack: &'static Stack<Device>) -> ! {
     stack.run().await
@@ -172,7 +174,7 @@ pub async fn tx_task(stack: &'static Stack<Device>) -> ! {
         loop {
             let reset_time = START_TIME.load(Ordering::Acquire);
             match BUTTON_PRESS_Q.dequeue() {
-                None => self::panic!("There should never be none"),
+                None => Timer::after(THROTTLE_TIME).await,
                 Some((button_id, press_time)) => {
                     let millis_since_init = (press_time as u32).saturating_sub(reset_time);
 
@@ -188,6 +190,8 @@ pub async fn tx_task(stack: &'static Stack<Device>) -> ! {
                         button_id,
                         millis_since_init,
                     });
+
+                    debug!("Sending message: {:?}", message);
 
                     let serialized: Vec<u8, 30> = to_vec(&message).unwrap();
 
