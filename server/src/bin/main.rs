@@ -1,12 +1,22 @@
 use std::{net::SocketAddr, num::Wrapping, time::Duration};
 
-use axum::{routing::get, Router};
+use axum::{
+    extract::{
+        ws::{self, WebSocket},
+        ConnectInfo, WebSocketUpgrade,
+    },
+    response::IntoResponse,
+    routing::get,
+    Router, ServiceExt,
+};
 use common::Message;
+use futures_util::{SinkExt, StreamExt};
 use postcard::{from_bytes, to_allocvec};
 use tokio::{
     io::{AsyncReadExt, AsyncWriteExt},
     net::{TcpListener, TcpStream},
 };
+use tower_http::services::ServeDir;
 
 #[tokio::main]
 async fn main() {
@@ -29,11 +39,15 @@ async fn main() {
         }
     });
 
-    let app = Router::new().route("/", get(root));
+    let app = Router::new()
+        .route("/", get(root))
+        .route("/ws", get(ws_handler))
+        .nest_service("/assets", ServeDir::new("assets"));
 
     let addr = SocketAddr::from(([127, 0, 0, 1], 3001));
+
     axum::Server::bind(&addr)
-        .serve(app.into_make_service())
+        .serve(app.into_make_service_with_connect_info::<SocketAddr>())
         .await
         .unwrap();
 }
@@ -93,3 +107,45 @@ async fn process_outgoing(mut socket: TcpStream) {
         tokio::time::sleep(Duration::from_secs(1)).await;
     }
 }
+
+async fn ws_handler(
+    ws: WebSocketUpgrade,
+    ConnectInfo(addr): ConnectInfo<SocketAddr>,
+) -> impl IntoResponse {
+    ws.on_upgrade(move |socket| process_websocket(socket, addr))
+}
+
+async fn process_websocket(stream: WebSocket, addr: SocketAddr) {
+    println!("New websocket client: {}", addr);
+
+    // By splitting, we can send and receive at the same time.
+    let (mut sender, mut receiver) = stream.split();
+
+    tokio::spawn(async move {
+        let mut counter = 0;
+        loop {
+            if let Err(e) = sender
+                .send(ws::Message::Text(format!("Msg #{counter}")))
+                .await
+            {
+                println!("Error sending to websocket client {addr}: {e}, closing socket");
+                return;
+            }
+            counter += 1;
+            tokio::time::sleep(Duration::from_secs(10)).await;
+        }
+    });
+
+    // Loop until a text message is found.
+    while let Some(Ok(message)) = receiver.next().await {
+        if let ws::Message::Text(msg) = message {
+            println!("Got text message: {}", msg);
+        }
+    }
+
+    return;
+}
+
+// var a = new WebSocket('ws://127.0.0.1:3001/ws');
+// a.addEventListener("message", (event) => console.log(event));
+// a.send("Hello");
