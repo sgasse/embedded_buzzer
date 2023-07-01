@@ -54,7 +54,7 @@ body {
   color: white;
 }
 
-.too-early-table th {
+#too-early-table th {
     background-color: rgb(173, 76, 11);
 }
 
@@ -70,4 +70,12 @@ body {
     justify-content: center;
     font-weight: bold;
     color: white;
+
+    /* animation: blinky 100ms linear infinite; */
+}
+
+@keyframes blinky {
+    50% {
+        opacity: 0;
+    }
 }
