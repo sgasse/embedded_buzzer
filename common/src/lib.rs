@@ -15,5 +15,4 @@ pub enum Message {
 pub struct ButtonPress {
     pub button_id: u8,
     pub millis_since_init: u32,
-    pub millis_reaction: i32,
 }
