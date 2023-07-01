@@ -50,18 +50,5 @@
       Your browser does not support the audio element.
     </audio>
   </body>
-  <script>
-    var backend = new WebSocket("ws://127.0.0.1:3001/ws");
-
-    const player = (msg) => {
-      var createSound = document.getElementById("create");
-      console.log(msg);
-      createSound.play();
-    };
-
-    const init = () => {
-      backend.send("This could be an init message");
-      backend.addEventListener("message", player);
-    };
-  </script>
+  <script src="generated/index.js"></script>
 </html>
