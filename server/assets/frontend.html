@@ -50,5 +50,8 @@
       Your browser does not support the audio element.
     </audio>
   </body>
-  <script src="generated/index.js"></script>
+  <script type="module">
+    import { init } from "./generated/index.js";
+    window.init = init;
+  </script>
 </html>

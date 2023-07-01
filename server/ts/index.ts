@@ -1,18 +1,28 @@
+import { ID_TO_SOUND } from "./idMap.js";
 
 var backend = new WebSocket("ws://127.0.0.1:3001/ws");
 
-const player = (msg: MessageEvent<any>) => {
-  var createSound: HTMLAudioElement = document.getElementById("create") as HTMLAudioElement;
-  console.log(msg);
+interface ButtonPress {
+    button_id: number;
+    millis_since_init: number;
+}
 
-  if (createSound.paused) {
-    createSound.play();
+const playButtonPressSound = (msg: MessageEvent<any>) => {
+  let buttonPress: ButtonPress = JSON.parse(msg.data).ButtonPress;
+  console.log(buttonPress);
+
+  let elementId: string = ID_TO_SOUND[buttonPress.button_id] ?? 'icq';
+
+  let audioElement: HTMLAudioElement = document.getElementById(elementId) as HTMLAudioElement;
+
+  if (audioElement.paused) {
+    audioElement.play();
   } else {
-    createSound.currentTime = 0;
+    audioElement.currentTime = 0;
   }
 };
 
-const init = () => {
+export function init() {
   backend.send("Init message from frontend");
-  backend.addEventListener("message", player);
+  backend.addEventListener("message", playButtonPressSound);
 };
