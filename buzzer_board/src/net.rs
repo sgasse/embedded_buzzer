@@ -74,7 +74,7 @@ pub async fn rx_task(stack: &'static Stack<Device>) -> ! {
     static STATE: TcpClientState<1, 1024, 1024> = TcpClientState::new();
     let client = TcpClient::new(&stack, &STATE);
 
-    loop {
+    'outer: loop {
         let addr = SocketAddr::V4(SocketAddrV4::new(Ipv4Addr::new(192, 168, 100, 1), 8001));
 
         info!("Trying to connect receiver task...");
@@ -91,6 +91,8 @@ pub async fn rx_task(stack: &'static Stack<Device>) -> ! {
         let mut buf = [0u8; 1000];
         let mut cursor_pos = 0;
 
+        let mut remaining_err_on_zero = 3;
+
         loop {
             match connection.read(&mut buf[cursor_pos..]).await {
                 Ok(0) => {
@@ -101,6 +103,11 @@ pub async fn rx_task(stack: &'static Stack<Device>) -> ! {
                         }
                         Err(_) => {
                             warn!("Could not deserialize, skipping");
+                            if remaining_err_on_zero <= 0 {
+                                warn!("Reconnecting");
+                                continue 'outer;
+                            }
+                            remaining_err_on_zero -= 1;
                         }
                     }
                     cursor_pos = 0;
