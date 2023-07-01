@@ -1,0 +1,1 @@
+const THROTTLE: number = 12;
