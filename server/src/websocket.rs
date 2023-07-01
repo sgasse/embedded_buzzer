@@ -6,7 +6,6 @@
 //! conn.addEventListener("message", (event) => console.log(event));
 //! conn.send("Hello from frontend");
 //! ```
-use futures_util::{SinkExt, StreamExt};
 use std::net::SocketAddr;
 
 use axum::{
@@ -17,6 +16,7 @@ use axum::{
     response::IntoResponse,
     Extension,
 };
+use futures_util::{SinkExt, StreamExt};
 
 use crate::UiBackendRouter;
 
@@ -58,6 +58,13 @@ async fn process_websocket(stream: WebSocket, addr: SocketAddr, uib_router: UiBa
     while let Some(Ok(message)) = receiver.next().await {
         if let ws::Message::Text(msg) = message {
             println!("Frontend (via {}): {}", addr, msg);
+
+            match serde_json::from_str(&msg) {
+                Ok(msg) => {
+                    uib_router.board_tx.send(msg).ok();
+                }
+                Err(_) => {}
+            }
         }
     }
 

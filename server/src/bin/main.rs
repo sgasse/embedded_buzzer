@@ -12,9 +12,12 @@ use tower_http::services::ServeDir;
 #[tokio::main]
 async fn main() {
     let (frontend_tx, frontend_rx) = broadcast::channel(10);
+    let (board_tx, board_rx) = broadcast::channel(10);
     let uib_router = Arc::new(UiBackendRouterInner {
         frontend_tx,
         frontend_rx,
+        board_tx,
+        board_rx,
     });
 
     // Open sockets
@@ -29,12 +32,14 @@ async fn main() {
         }
     });
 
-    tokio::spawn(async {
+    let uib_router_ = uib_router.clone();
+    tokio::spawn(async move {
+        let uib_router_ = uib_router_.clone();
         let send_to_board = TcpListener::bind("192.168.100.1:8001").await.unwrap();
 
         loop {
             let (socket, _) = send_to_board.accept().await.unwrap();
-            tokio::spawn(process_outgoing(socket));
+            tokio::spawn(process_outgoing(socket, uib_router_.clone()));
         }
     });
 

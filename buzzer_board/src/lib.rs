@@ -25,7 +25,9 @@ macro_rules! singleton {
     }};
 }
 
-pub static START_TIME: AtomicU32 = AtomicU32::new(0);
+pub static BOARD_INIT_TIME: AtomicU32 = AtomicU32::new(0);
+pub static REACTION_GAME_INIT_TIME: AtomicU32 = AtomicU32::new(0);
+pub static REACTION_GAME_DELAY: AtomicU32 = AtomicU32::new(0);
 
 pub fn gen_random_seed(rng: RNG) -> u64 {
     let mut rng = Rng::new(rng);
@@ -74,5 +76,3 @@ macro_rules! create_net_peripherals {
         }
     };
 }
-
-pub use common::GameInfo;

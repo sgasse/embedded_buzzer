@@ -4,11 +4,51 @@
     <link rel="stylesheet" href="style.css" />
   </head>
   <body>
-    <h1>Frontend</h1>
+    <div class="outer">
+      <div class="title">Reaction Game</div>
+      <button onclick="initReactionGame();">Start</button>
+      <div id="trigger">
+        <div>GO!</div>
+      </div>
+      <div class="leaderboard">
+        <div class="table-title">Leaderboard</div>
+        <div class="reaction-table-wrapper">
+          <table class="reaction-table leader-table">
+            <tr>
+              <th>Name</th>
+              <th>Time</th>
+            </tr>
 
-    <button onclick="initReactionGame();">Start</button>
+            <tr>
+              <td>Wololo</td>
+              <td>+23.4</td>
+            </tr>
 
-    <div id="trigger">NOW</div>
+            <tr>
+              <td>Create</td>
+              <td>+94.3</td>
+            </tr>
+          </table>
+        </div>
+      </div>
+
+      <div class="too-early">
+        <div class="table-title">Too early...</div>
+        <div class="reaction-table-wrapper">
+          <table class="reaction-table too-early-table">
+            <tr>
+              <th>Name</th>
+              <th>Time</th>
+            </tr>
+
+            <tr>
+              <td>ICQ</td>
+              <td>-100.6</td>
+            </tr>
+          </table>
+        </div>
+      </div>
+    </div>
 
     <audio id="boowomp">
       <source src="audio/boowomp.mp3" type="audio/mpeg" />

@@ -1,6 +1,9 @@
 use core::sync::atomic::Ordering;
 
-use crate::{singleton, NetPeripherals, BUTTON_PRESS_Q, START_TIME};
+use crate::{
+    singleton, NetPeripherals, BOARD_INIT_TIME, BUTTON_PRESS_Q, REACTION_GAME_DELAY,
+    REACTION_GAME_INIT_TIME,
+};
 use common::{ButtonPress, Message};
 use defmt::*;
 use embassy_net::tcp::client::{TcpClient, TcpClientState};
@@ -151,12 +154,11 @@ pub async fn tx_task(stack: &'static Stack<Device>) -> ! {
         info!("Sender task connected!");
 
         loop {
-            let reset_time = START_TIME.load(Ordering::Acquire);
+            let reset_time = BOARD_INIT_TIME.load(Ordering::Acquire);
             match BUTTON_PRESS_Q.dequeue() {
                 None => Timer::after(THROTTLE_TIME).await,
                 Some((button_id, press_time)) => {
                     let millis_since_init = (press_time as u32).saturating_sub(reset_time);
-
                     if millis_since_init == 0 {
                         warn!(
                             "Button press {} registered before last reset, skipping",
@@ -165,9 +167,14 @@ pub async fn tx_task(stack: &'static Stack<Device>) -> ! {
                         continue;
                     }
 
+                    let millis_reaction = (press_time as i32)
+                        - REACTION_GAME_INIT_TIME.load(Ordering::Acquire) as i32
+                        - REACTION_GAME_DELAY.load(Ordering::Acquire) as i32;
+
                     let message = Message::ButtonPress(ButtonPress {
                         button_id,
                         millis_since_init,
+                        millis_reaction,
                     });
 
                     debug!("Sending message: {:?}", message);
@@ -192,10 +199,16 @@ pub async fn tx_task(stack: &'static Stack<Device>) -> ! {
 
 fn handle_message(message: Message) {
     match message {
-        Message::InitGame => {
-            info!("Received InitGame instruction");
+        Message::InitBoard => {
+            info!("Received InitBoard instruction");
             let instant_millis = Instant::now().as_millis() as u32;
-            START_TIME.store(instant_millis, Ordering::Release);
+            BOARD_INIT_TIME.store(instant_millis, Ordering::Release);
+        }
+        Message::InitReactionGame(delay) => {
+            info!("Received InitReactionGame instruction");
+            let instant_millis = Instant::now().as_millis() as u32;
+            REACTION_GAME_INIT_TIME.store(instant_millis, Ordering::Release);
+            REACTION_GAME_DELAY.store(delay, Ordering::Release);
         }
         Message::Ping(ping_nr) => {
             info!("Received Ping({})", ping_nr);
