@@ -7,8 +7,12 @@ use tokio::{
     net::TcpStream,
 };
 
-pub async fn process_incoming(mut socket: TcpStream) {
+use crate::UiBackendRouter;
+
+pub async fn process_incoming(mut socket: TcpStream, uib_router: UiBackendRouter) {
+    let ui_tx = uib_router.frontend_tx.clone();
     let mut buf = vec![0; 1000];
+
     loop {
         match socket.read(&mut buf).await {
             Ok(num_read) => {
@@ -17,6 +21,7 @@ pub async fn process_incoming(mut socket: TcpStream) {
                 match from_bytes::<Message>(&buf[0..num_read]) {
                     Ok(message) => {
                         println!("Got message {message:?}");
+                        ui_tx.send(message).ok();
                     }
                     Err(e) => {
                         println!("Error in deserializing received message: {e}");

@@ -7,7 +7,7 @@
 //! conn.send("Hello from frontend");
 //! ```
 use futures_util::{SinkExt, StreamExt};
-use std::{net::SocketAddr, time::Duration};
+use std::net::SocketAddr;
 
 use axum::{
     extract::{
@@ -15,34 +15,56 @@ use axum::{
         ConnectInfo, WebSocketUpgrade,
     },
     response::IntoResponse,
+    Extension,
 };
+
+use crate::UiBackendRouter;
 
 pub async fn ws_handler(
     ws: WebSocketUpgrade,
     ConnectInfo(addr): ConnectInfo<SocketAddr>,
+    Extension(uib_router): Extension<UiBackendRouter>,
 ) -> impl IntoResponse {
-    ws.on_upgrade(move |socket| process_websocket(socket, addr))
+    ws.on_upgrade(move |socket| process_websocket(socket, addr, uib_router))
 }
 
-async fn process_websocket(stream: WebSocket, addr: SocketAddr) {
+async fn process_websocket(stream: WebSocket, addr: SocketAddr, uib_router: UiBackendRouter) {
     println!("New websocket client: {}", addr);
 
     // By splitting, we can send and receive at the same time.
     let (mut sender, mut receiver) = stream.split();
 
+    let mut ui_rx = uib_router.frontend_rx.resubscribe();
+
+    // Receive updates from board.
     tokio::spawn(async move {
-        let mut counter = 0;
         loop {
-            if let Err(e) = sender
-                .send(ws::Message::Text(format!("Msg #{counter}")))
-                .await
-            {
-                println!("Error sending to websocket client {addr}: {e}, closing socket");
-                return;
+            match ui_rx.recv().await {
+                Ok(msg) => {
+                    let msg = ws::Message::Text(serde_json::to_string(&msg).unwrap());
+                    if let Err(e) = sender.send(msg).await {
+                        println!(
+                            "Could not send to websocket client {addr}, dropping connection ({e})."
+                        );
+                        return;
+                    }
+                }
+                Err(e) => println!("Error receiving: {e}"),
             }
-            counter += 1;
-            tokio::time::sleep(Duration::from_secs(10)).await;
         }
+
+        // let mut counter = 0;
+        // loop {
+        //     if let Err(e) = sender
+        //         .send(ws::Message::Text(format!("Msg #{counter}")))
+        //         .await
+        //     {
+        //         println!("Error sending to websocket client {addr}: {e}, closing socket");
+        //         return;
+        //     }
+        //     counter += 1;
+        //     tokio::time::sleep(Duration::from_secs(10)).await;
+        // }
     });
 
     // Loop until a text message is found.

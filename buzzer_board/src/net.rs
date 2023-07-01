@@ -108,11 +108,6 @@ pub async fn rx_task(stack: &'static Stack<Device>) -> ! {
                     Timer::after(Duration::from_secs(1)).await;
                 }
                 Ok(num_read) => {
-                    // info!(
-                    //     "Read {} bytes: {:?}",
-                    //     num_read,
-                    //     buf[cursor_pos..(cursor_pos + num_read)]
-                    // );
                     cursor_pos += num_read;
 
                     match from_bytes::<Message>(&buf[0..cursor_pos]) {
@@ -132,22 +127,6 @@ pub async fn rx_task(stack: &'static Stack<Device>) -> ! {
                     }
                 }
             }
-        }
-    }
-}
-
-fn handle_message(message: Message) {
-    match message {
-        Message::InitGame => {
-            info!("Received InitGame instruction");
-            let instant_millis = Instant::now().as_millis() as u32;
-            START_TIME.store(instant_millis, Ordering::Release);
-        }
-        Message::Ping(ping_nr) => {
-            info!("Received Ping({})", ping_nr);
-        }
-        Message::ButtonPress(_) => {
-            warn!("Board should not be receiving ButtonPress data");
         }
     }
 }
@@ -207,6 +186,22 @@ pub async fn tx_task(stack: &'static Stack<Device>) -> ! {
                     }
                 }
             }
+        }
+    }
+}
+
+fn handle_message(message: Message) {
+    match message {
+        Message::InitGame => {
+            info!("Received InitGame instruction");
+            let instant_millis = Instant::now().as_millis() as u32;
+            START_TIME.store(instant_millis, Ordering::Release);
+        }
+        Message::Ping(ping_nr) => {
+            info!("Received Ping({})", ping_nr);
+        }
+        Message::ButtonPress(_) => {
+            warn!("Board should not be receiving ButtonPress data");
         }
     }
 }
