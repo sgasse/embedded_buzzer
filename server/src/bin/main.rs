@@ -7,7 +7,7 @@ use server::{
     UiBackendRouterInner,
 };
 use tokio::{net::TcpListener, sync::broadcast};
-use tower_http::services::ServeDir;
+use tower_http::services::{ServeDir, ServeFile};
 
 #[tokio::main]
 async fn main() {
@@ -46,10 +46,11 @@ async fn main() {
     let app = Router::new()
         .route("/", get(root))
         .route("/ws", get(ws_handler))
+        .nest_service("/reaction", ServeFile::new("assets/reaction.html"))
         .nest_service("/assets", ServeDir::new("assets"))
         .layer(Extension(uib_router));
 
-    let addr = SocketAddr::from(([127, 0, 0, 1], 3001));
+    let addr = SocketAddr::from(([127, 0, 0, 1], 3000));
 
     axum::Server::bind(&addr)
         .serve(app.into_make_service_with_connect_info::<SocketAddr>())

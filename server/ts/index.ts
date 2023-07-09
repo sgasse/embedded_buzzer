@@ -1,6 +1,6 @@
 import { ID_TO_SOUND, ID_TO_NAME } from "./idMap.js";
 
-var backend = new WebSocket("ws://127.0.0.1:3001/ws");
+var backend = new WebSocket(`ws://${location.host}/ws`);
 var already_pressed_set: Set<number> = new Set<number>();
 var randomCountdownMs: number = 0;
 
@@ -52,6 +52,7 @@ export function initReactionGame() {
 
     // Random delay between 2 and 5 seconds in ms.
     randomCountdownMs = 2000 + Math.floor(Math.random() * 3000);
+    console.log("New random delay is ", randomCountdownMs);
     backend.send(`{"InitReactionGame":${randomCountdownMs}}`);
 
     setTimeout((_: any) => {
