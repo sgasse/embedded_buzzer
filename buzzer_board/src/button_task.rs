@@ -46,7 +46,7 @@ pub async fn debounced_button_presses(
     let mut last_pressed: [u64; NUM_BUTTONS] = [0; NUM_BUTTONS];
 
     let buttons: [_; NUM_BUTTONS] = buttons.map(|(button, exti_input)| {
-        let button = Input::new(button, Pull::Down);
+        let button = Input::new(button, Pull::Up);
         ExtiInput::new(button, exti_input)
     });
 
