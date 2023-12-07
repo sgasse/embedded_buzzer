@@ -8,11 +8,14 @@ use buzzer_board::{create_net_peripherals, gen_random_seed};
 use defmt::*;
 use embassy_executor::Spawner;
 use embassy_stm32::exti::Channel;
-use embassy_stm32::gpio::Pin;
+use embassy_stm32::gpio::{AnyPin, Level, Output, Pin, Speed};
 use embassy_stm32::time::mhz;
 use embassy_stm32::Config;
 use embassy_time::{Duration, Timer};
+use heapless::Vec;
 use {defmt_rtt as _, panic_probe as _};
+
+const NUM_LEDS: usize = 6;
 
 #[embassy_executor::main]
 async fn main(spawner: Spawner) -> ! {
@@ -23,6 +26,23 @@ async fn main(spawner: Spawner) -> ! {
     let p = embassy_stm32::init(config);
 
     let seed = gen_random_seed(p.RNG);
+
+    // Configure LED pins
+    let led_pins: [AnyPin; NUM_LEDS] = [
+        p.PA6.degrade(),
+        p.PA8.degrade(),
+        p.PI8.degrade(),
+        p.PB6.degrade(),
+        p.PE3.degrade(),
+        p.PB15.degrade(),
+    ];
+    let mut led_outputs: Vec<Output<AnyPin>, NUM_LEDS> = Vec::new();
+
+    for pin in led_pins {
+        led_outputs
+            .push(Output::new(pin, Level::Low, Speed::Low))
+            .ok();
+    }
 
     let net_p = create_net_peripherals!(p);
     let stack = init_net_stack(net_p, seed);
