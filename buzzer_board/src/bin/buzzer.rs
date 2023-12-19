@@ -4,7 +4,7 @@
 
 use buzzer_board::button_task::debounced_button_presses;
 use buzzer_board::net::{init_net_stack, net_task, rx_task, tx_task};
-use buzzer_board::{create_net_peripherals, gen_random_seed};
+use buzzer_board::{create_net_peripherals, gen_random_seed, singleton, NUM_LEDS};
 use defmt::*;
 use embassy_executor::Spawner;
 use embassy_stm32::exti::Channel;
@@ -14,8 +14,6 @@ use embassy_stm32::Config;
 use embassy_time::{Duration, Timer};
 use heapless::Vec;
 use {defmt_rtt as _, panic_probe as _};
-
-const NUM_LEDS: usize = 6;
 
 #[embassy_executor::main]
 async fn main(spawner: Spawner) -> ! {
@@ -44,6 +42,8 @@ async fn main(spawner: Spawner) -> ! {
             .ok();
     }
 
+    let led_outputs: &'static mut Vec<Output<'static, AnyPin>, NUM_LEDS> = singleton!(led_outputs);
+
     let net_p = create_net_peripherals!(p);
     let stack = init_net_stack(net_p, seed);
 
@@ -51,7 +51,7 @@ async fn main(spawner: Spawner) -> ! {
     unwrap!(spawner.spawn(net_task(&stack)));
     info!("Network task initialized");
 
-    unwrap!(spawner.spawn(rx_task(&stack)));
+    unwrap!(spawner.spawn(rx_task(&stack, led_outputs)));
     unwrap!(spawner.spawn(tx_task(&stack)));
 
     unwrap!(spawner.spawn(debounced_button_presses([

@@ -1,12 +1,13 @@
 use core::sync::atomic::Ordering;
 
-use crate::{singleton, NetPeripherals, BUTTON_PRESS_Q, INIT_TIME};
+use crate::{singleton, LedOutputs, NetPeripherals, BUTTON_PRESS_Q, INIT_TIME};
 use common::{ButtonPress, Message};
 use defmt::*;
 use embassy_net::tcp::client::{TcpClient, TcpClientState};
 use embassy_net::{tcp::Error::ConnectionReset, Ipv4Address, Ipv4Cidr, Stack, StackResources};
 use embassy_stm32::eth::PacketQueue;
 use embassy_stm32::eth::{generic_smi::GenericSMI, Ethernet};
+use embassy_stm32::gpio::Level;
 use embassy_stm32::interrupt;
 use embassy_stm32::peripherals::ETH;
 use embassy_time::{Duration, Instant, Timer};
@@ -70,7 +71,7 @@ pub fn init_net_stack(net_p: NetPeripherals, seed: u64) -> &'static Stack<Device
 }
 
 #[embassy_executor::task]
-pub async fn rx_task(stack: &'static Stack<Device>) -> ! {
+pub async fn rx_task(stack: &'static Stack<Device>, mut led_outputs: LedOutputs) -> ! {
     static STATE: TcpClientState<1, 1024, 1024> = TcpClientState::new();
     let client = TcpClient::new(&stack, &STATE);
 
@@ -99,7 +100,7 @@ pub async fn rx_task(stack: &'static Stack<Device>) -> ! {
                     // Nothing new read, try to deserialize
                     match from_bytes::<Message>(&buf[0..cursor_pos]) {
                         Ok(message) => {
-                            handle_message(message);
+                            handle_message(message, &mut led_outputs);
                         }
                         Err(_) => {
                             warn!("Could not deserialize, skipping");
@@ -119,7 +120,7 @@ pub async fn rx_task(stack: &'static Stack<Device>) -> ! {
 
                     match from_bytes::<Message>(&buf[0..cursor_pos]) {
                         Ok(message) => {
-                            handle_message(message);
+                            handle_message(message, &mut led_outputs);
                             cursor_pos = 0;
                         }
                         Err(_) => {
@@ -196,7 +197,7 @@ pub async fn tx_task(stack: &'static Stack<Device>) -> ! {
     }
 }
 
-fn handle_message(message: Message) {
+fn handle_message(message: Message, led_outputs: &mut LedOutputs) {
     match message {
         Message::InitBoard | Message::InitReactionGame(_) => {
             info!("Received InitBoard instruction");
@@ -208,6 +209,16 @@ fn handle_message(message: Message) {
         }
         Message::ButtonPress(_) => {
             warn!("Board should not be receiving ButtonPress data");
+        }
+        Message::LedUpdate(update) => {
+            info!("Received LED update: {:?}", update);
+            if let Some(led) = led_outputs.get_mut(update.button_id as usize) {
+                if update.on {
+                    led.set_level(Level::High);
+                } else {
+                    led.set_level(Level::Low);
+                }
+            }
         }
     }
 }
