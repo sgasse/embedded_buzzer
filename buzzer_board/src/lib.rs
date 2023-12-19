@@ -3,15 +3,19 @@
 
 use core::sync::atomic::AtomicU32;
 
+use embassy_stm32::gpio::{AnyPin, Output};
 use embassy_stm32::peripherals::{
     ETH, PA1, PA2, PA7, PB0, PB1, PC1, PC2, PC3, PC4, PC5, PE2, PG11, PG12, PG13, RNG,
 };
 use embassy_stm32::rng::Rng;
 use heapless::mpmc::Q64;
+use heapless::Vec;
 use rand_core::RngCore;
 
 pub mod button_task;
 pub mod net;
+
+pub type LedOutputs = &'static mut Vec<Output<'static, AnyPin>, NUM_LEDS>;
 
 pub static BUTTON_PRESS_Q: Q64<(u8, u64)> = Q64::new();
 
@@ -26,6 +30,8 @@ macro_rules! singleton {
 }
 
 pub static INIT_TIME: AtomicU32 = AtomicU32::new(0);
+
+pub const NUM_LEDS: usize = 6;
 
 pub fn gen_random_seed(rng: RNG) -> u64 {
     let mut rng = Rng::new(rng);
