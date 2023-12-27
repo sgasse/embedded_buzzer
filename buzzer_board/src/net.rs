@@ -1,24 +1,22 @@
 use core::sync::atomic::Ordering;
 
-use crate::{singleton, LedOutputs, NetPeripherals, BUTTON_PRESS_Q, INIT_TIME};
+use crate::buffer::NetBuffer;
+use crate::{singleton, NetPeripherals, BUTTON_PRESS_Q, INIT_TIME, LED_CHANGE_Q, THROTTLE_TIME};
 use common::{ButtonPress, Message};
 use defmt::*;
 use embassy_net::tcp::client::{TcpClient, TcpClientState};
 use embassy_net::{tcp::Error::ConnectionReset, Ipv4Address, Ipv4Cidr, Stack, StackResources};
 use embassy_stm32::eth::PacketQueue;
 use embassy_stm32::eth::{generic_smi::GenericSMI, Ethernet};
-use embassy_stm32::gpio::Level;
 use embassy_stm32::interrupt;
 use embassy_stm32::peripherals::ETH;
 use embassy_time::{Duration, Instant, Timer};
 use embedded_io::asynch::{Read, Write};
 use embedded_nal_async::{Ipv4Addr, SocketAddr, SocketAddrV4, TcpConnect};
 use heapless::Vec;
-use postcard::{from_bytes, to_vec};
+use postcard::to_vec;
 
 pub type Device = Ethernet<'static, ETH, GenericSMI>;
-
-const THROTTLE_TIME: Duration = Duration::from_millis(10);
 
 #[embassy_executor::task]
 pub async fn net_task(stack: &'static Stack<Device>) -> ! {
@@ -60,20 +58,18 @@ pub fn init_net_stack(net_p: NetPeripherals, seed: u64) -> &'static Stack<Device
     });
 
     // Init network stack
-    let stack = &*singleton!(Stack::new(
+    &*singleton!(Stack::new(
         device,
         config,
         singleton!(StackResources::<2>::new()),
         seed
-    ));
-
-    stack
+    ))
 }
 
 #[embassy_executor::task]
-pub async fn rx_task(stack: &'static Stack<Device>, mut led_outputs: LedOutputs) -> ! {
+pub async fn rx_task(stack: &'static Stack<Device>) -> ! {
     static STATE: TcpClientState<1, 1024, 1024> = TcpClientState::new();
-    let client = TcpClient::new(&stack, &STATE);
+    let client = TcpClient::new(stack, &STATE);
 
     'outer: loop {
         let addr = SocketAddr::V4(SocketAddrV4::new(Ipv4Addr::new(192, 168, 100, 1), 8001));
@@ -88,45 +84,27 @@ pub async fn rx_task(stack: &'static Stack<Device>, mut led_outputs: LedOutputs)
 
         let mut connection = r.unwrap();
         info!("Receiver task connected!");
-
-        let mut buf = [0u8; 1000];
-        let mut cursor_pos = 0;
+        let mut net_buffer = NetBuffer::<2000, 300>::default();
 
         let mut remaining_err_on_zero = 3;
 
         loop {
-            match connection.read(&mut buf[cursor_pos..]).await {
+            match connection.read(net_buffer.as_buf()).await {
                 Ok(0) => {
-                    // Nothing new read, try to deserialize
-                    match from_bytes::<Message>(&buf[0..cursor_pos]) {
-                        Ok(message) => {
-                            handle_message(message, &mut led_outputs);
+                    // Nothing new read, try to deserialize.
+                    if !net_buffer.process_msgs_ok(handle_message) {
+                        if remaining_err_on_zero <= 0 {
+                            warn!("Reconnecting");
+                            continue 'outer;
                         }
-                        Err(_) => {
-                            warn!("Could not deserialize, skipping");
-                            if remaining_err_on_zero <= 0 {
-                                warn!("Reconnecting");
-                                continue 'outer;
-                            }
-                            remaining_err_on_zero -= 1;
-                        }
+                        remaining_err_on_zero -= 1;
                     }
-                    cursor_pos = 0;
 
-                    Timer::after(Duration::from_secs(1)).await;
+                    Timer::after(Duration::from_millis(30)).await;
                 }
                 Ok(num_read) => {
-                    cursor_pos += num_read;
-
-                    match from_bytes::<Message>(&buf[0..cursor_pos]) {
-                        Ok(message) => {
-                            handle_message(message, &mut led_outputs);
-                            cursor_pos = 0;
-                        }
-                        Err(_) => {
-                            warn!("Could not deserialize, skipping");
-                        }
-                    }
+                    net_buffer.cursor += num_read;
+                    net_buffer.process_msgs_ok(handle_message);
                 }
                 Err(e) => {
                     warn!("Error while reading: {}", e);
@@ -142,7 +120,7 @@ pub async fn rx_task(stack: &'static Stack<Device>, mut led_outputs: LedOutputs)
 #[embassy_executor::task]
 pub async fn tx_task(stack: &'static Stack<Device>) -> ! {
     static STATE: TcpClientState<1, 1024, 1024> = TcpClientState::new();
-    let client = TcpClient::new(&stack, &STATE);
+    let client = TcpClient::new(stack, &STATE);
 
     loop {
         let addr = SocketAddr::V4(SocketAddrV4::new(Ipv4Addr::new(192, 168, 100, 1), 8000));
@@ -197,7 +175,7 @@ pub async fn tx_task(stack: &'static Stack<Device>) -> ! {
     }
 }
 
-fn handle_message(message: Message, led_outputs: &mut LedOutputs) {
+fn handle_message(message: Message) {
     match message {
         Message::InitBoard | Message::InitReactionGame(_) => {
             info!("Received InitBoard instruction");
@@ -212,13 +190,7 @@ fn handle_message(message: Message, led_outputs: &mut LedOutputs) {
         }
         Message::LedUpdate(update) => {
             info!("Received LED update: {:?}", update);
-            if let Some(led) = led_outputs.get_mut(update.button_id as usize) {
-                if update.on {
-                    led.set_level(Level::High);
-                } else {
-                    led.set_level(Level::Low);
-                }
-            }
+            LED_CHANGE_Q.enqueue(update).ok();
         }
     }
 }

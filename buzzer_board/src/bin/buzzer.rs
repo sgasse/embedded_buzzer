@@ -3,6 +3,7 @@
 #![feature(type_alias_impl_trait)]
 
 use buzzer_board::button_task::debounced_button_presses;
+use buzzer_board::leds::led_task;
 use buzzer_board::net::{init_net_stack, net_task, rx_task, tx_task};
 use buzzer_board::{create_net_peripherals, gen_random_seed, singleton, NUM_LEDS};
 use defmt::*;
@@ -43,6 +44,7 @@ async fn main(spawner: Spawner) -> ! {
     }
 
     let led_outputs: &'static mut Vec<Output<'static, AnyPin>, NUM_LEDS> = singleton!(led_outputs);
+    unwrap!(spawner.spawn(led_task(led_outputs)));
 
     let net_p = create_net_peripherals!(p);
     let stack = init_net_stack(net_p, seed);
@@ -51,7 +53,7 @@ async fn main(spawner: Spawner) -> ! {
     unwrap!(spawner.spawn(net_task(&stack)));
     info!("Network task initialized");
 
-    unwrap!(spawner.spawn(rx_task(&stack, led_outputs)));
+    unwrap!(spawner.spawn(rx_task(&stack)));
     unwrap!(spawner.spawn(tx_task(&stack)));
 
     unwrap!(spawner.spawn(debounced_button_presses([
