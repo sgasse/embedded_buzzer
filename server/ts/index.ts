@@ -43,14 +43,6 @@ const handleIncomingPress = (msg: MessageEvent<any>) => {
     playAudio(document.getElementById(audioName) as HTMLAudioElement);
 
   }
-
-  // let audioElement: HTMLAudioElement = (tooEarly ? document.getElementById('boowomp') : document.getElementById(audioName)) as HTMLAudioElement;
-
-  // if (audioElement.paused) {
-  //   audioElement.play();
-  // } else {
-  //   audioElement.currentTime = 0;
-  // }
 };
 
 backend.addEventListener("message", handleIncomingPress);
@@ -58,6 +50,8 @@ backend.addEventListener("message", handleIncomingPress);
 export function initReactionGame() {
     let triggerElement = document.getElementById('trigger') as HTMLElement;
     triggerElement.style.visibility = 'hidden';
+
+    setAllButtons(backend, false);
 
     first = true;
 
@@ -105,5 +99,13 @@ function playAudio(audioElement: HTMLAudioElement) {
     audioElement.play();
   } else {
     audioElement.currentTime = 0;
+  }
+}
+
+function setAllButtons(backend: WebSocket, on: boolean) {
+  for (let i = 0; i < 6; i++) {
+    backend.send(
+      `{"LedUpdate": {"button_id": ${i}, "on": ${on}}}`
+    )
   }
 }

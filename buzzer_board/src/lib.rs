@@ -3,21 +3,28 @@
 
 use core::sync::atomic::AtomicU32;
 
+use common::LedUpdate;
 use embassy_stm32::gpio::{AnyPin, Output};
 use embassy_stm32::peripherals::{
     ETH, PA1, PA2, PA7, PB0, PB1, PC1, PC2, PC3, PC4, PC5, PE2, PG11, PG12, PG13, RNG,
 };
 use embassy_stm32::rng::Rng;
-use heapless::mpmc::Q64;
+use embassy_time::Duration;
+use heapless::mpmc::{Q16, Q64};
 use heapless::Vec;
 use rand_core::RngCore;
 
+pub mod buffer;
 pub mod button_task;
+pub mod leds;
 pub mod net;
 
 pub type LedOutputs = &'static mut Vec<Output<'static, AnyPin>, NUM_LEDS>;
 
 pub static BUTTON_PRESS_Q: Q64<(u8, u64)> = Q64::new();
+pub static LED_CHANGE_Q: Q16<LedUpdate> = Q16::new();
+
+pub const THROTTLE_TIME: Duration = Duration::from_millis(10);
 
 #[macro_export]
 macro_rules! singleton {
