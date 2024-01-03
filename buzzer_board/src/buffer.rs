@@ -5,8 +5,6 @@ use postcard::take_from_bytes;
 pub struct NetBuffer<const BUF_SIZE: usize, const COPY_BUF_SIZE: usize> {
     pub cursor: usize,
     pub buf: [u8; BUF_SIZE],
-
-    copy_buf: [u8; COPY_BUF_SIZE],
 }
 
 impl<const T: usize, const U: usize> NetBuffer<T, U> {
@@ -30,9 +28,16 @@ impl<const T: usize, const U: usize> NetBuffer<T, U> {
                 Err(_) => {
                     warn!("Could not deserialize buffer, skipping...");
 
+                    // Example: cursor_pos at 12, read 8 bytes, 4 left over
+                    // ---- ---- | ---- |
+                    //                  cursor_pos: 12
+                    // -> copy from: 8..12 to 0..4
                     let left_over_len = to_deserialize.len();
-                    self.copy_buf[0..left_over_len].clone_from_slice(to_deserialize);
-                    self.buf[0..left_over_len].clone_from_slice(&self.copy_buf[0..left_over_len]);
+                    let copy_start_idx = self.cursor - left_over_len;
+
+                    for idx in 0..left_over_len {
+                        self.buf[idx] = self.buf[copy_start_idx + idx];
+                    }
                     self.cursor = left_over_len;
 
                     return false;
@@ -51,7 +56,6 @@ impl<const T: usize, const U: usize> Default for NetBuffer<T, U> {
         Self {
             cursor: 0,
             buf: [0u8; T],
-            copy_buf: [0u8; U],
         }
     }
 }
