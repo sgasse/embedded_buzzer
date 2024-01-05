@@ -7,6 +7,9 @@ var disqualified_set: Set<number> = new Set<number>();
 var randomCountdownMs: number = 0;
 var firstNumber: number | null = null;
 
+var myChart;
+var chartData;
+
 const handleIncomingPress = (msg: MessageEvent<any>) => {
   console.log("Received message:", msg);
 
@@ -37,6 +40,9 @@ const handleIncomingPress = (msg: MessageEvent<any>) => {
     }
     playAudio(document.getElementById(audioName) as HTMLAudioElement);
 
+    chartData[buttonPress.button_id] = reactionTime;
+    updateChartData(chartData);
+
   }
 };
 
@@ -56,6 +62,9 @@ export function continueRound() {
     document.getElementById('disqualified-table')?.appendChild(element);
   }
   firstNumber = null;
+
+  chartData = [0, 0, 0, 0, 0, 0, 0];
+  updateChartData(chartData);
 
   already_pressed_set.clear()
   const leaderTable = document.getElementById('leader-table') as HTMLTableElement;
@@ -77,6 +86,9 @@ export function initQuizGame() {
     already_pressed_set.clear()
     disqualified_set.clear()
 
+    chartData = [0, 0, 0, 0, 0, 0, 0];
+    updateChartData(chartData);
+
     const leaderTable = document.getElementById('leader-table') as HTMLTableElement;
     clearTable(leaderTable);
     const disqualifiedTable = document.getElementById('disqualified-table') as HTMLTableElement;
@@ -84,3 +96,54 @@ export function initQuizGame() {
 
     backend.send(`{"InitReactionGame": 0}`);
 }
+
+export function initChart() {
+  var chartDom = document.getElementById("main");
+  myChart = echarts.init(chartDom);
+  updateChartData([0, 0, 0, 0, 0, 0, 0])
+
+}
+
+function updateChartData(numbers) {
+  var option;
+
+  option = {
+    xAxis: {
+      type: "category",
+      data: ID_TO_NAME,
+      axisLabel: {
+        interval: 0,
+        rotate: 30
+      }
+    },
+    yAxis: {
+      type: "value",
+    },
+    series: [
+      {
+        data: numbers,
+        type: "bar",
+      },
+    ],
+  };
+
+  option && myChart.setOption(option);
+}
+
+
+
+
+        // data: [
+        //   120,
+        //   {
+        //     value: 200,
+        //     itemStyle: {
+        //       color: "#a90000",
+        //     },
+        //   },
+        //   150,
+        //   80,
+        //   70,
+        //   110,
+        //   130,
+        // ],

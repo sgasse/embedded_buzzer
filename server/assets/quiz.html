@@ -36,6 +36,8 @@
       </div>
     </div>
 
+    <div id="main" style="width: 600px; height: 400px"></div>
+
     <audio id="boowomp">
       <source src="/assets/audio/boowomp.mp3" type="audio/mpeg" />
       Your browser does not support the audio element.
@@ -81,9 +83,55 @@
       Your browser does not support the audio element.
     </audio>
   </body>
+  <script
+    src=" https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js "
+  >
+    window.echarts = echarts;
+  </script>
   <script type="module">
-    import { initQuizGame, continueRound } from "/assets/generated/quiz.js";
+    import {
+      initQuizGame,
+      continueRound,
+      initChart,
+    } from "/assets/generated/quiz.js";
     window.initQuizGame = initQuizGame;
     window.continueRound = continueRound;
+
+    initChart();
+
+    // var chartDom = document.getElementById("main");
+    // var myChart = echarts.init(chartDom);
+    // var option;
+
+    // option = {
+    //   xAxis: {
+    //     type: "category",
+    //     data: ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"],
+    //   },
+    //   yAxis: {
+    //     type: "value",
+    //   },
+    //   series: [
+    //     {
+    //       data: [
+    //         120,
+    //         {
+    //           value: 200,
+    //           itemStyle: {
+    //             color: "#a90000",
+    //           },
+    //         },
+    //         150,
+    //         80,
+    //         70,
+    //         110,
+    //         130,
+    //       ],
+    //       type: "bar",
+    //     },
+    //   ],
+    // };
+
+    // option && myChart.setOption(option);
   </script>
 </html>
