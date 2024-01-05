@@ -5,8 +5,8 @@
   </head>
   <body>
     <div class="outer">
-      <div class="title">Reaction Game</div>
-      <button class="button" onclick="initReactionGame();">Start</button>
+      <div class="title">Quiz</div>
+      <button class="button" onclick="initQuizGame();">Start</button>
       <div id="trigger">
         <div>GO!</div>
       </div>
@@ -26,6 +26,19 @@
         <div class="table-title">Too early...</div>
         <div class="reaction-table-wrapper">
           <table class="reaction-table" id="too-early-table">
+            <tr>
+              <th>Name</th>
+              <th>Time (ms)</th>
+            </tr>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <div class="disqualified">
+        <div class="table-title">Disqualified</div>
+        <div class="reaction-table-wrapper">
+          <table class="reaction-table" id="disqualified-table">
             <tr>
               <th>Name</th>
               <th>Time (ms)</th>
@@ -81,7 +94,7 @@
     </audio>
   </body>
   <script type="module">
-    import { initReactionGame } from "/assets/generated/reaction.js";
-    window.initReactionGame = initReactionGame;
+    import { initQuizGame } from "/assets/generated/quiz.js";
+    window.initQuizGame = initQuizGame;
   </script>
 </html>

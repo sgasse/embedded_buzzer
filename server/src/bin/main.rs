@@ -47,6 +47,7 @@ async fn main() {
         .route("/", get(root))
         .route("/ws", get(ws_handler))
         .nest_service("/reaction", ServeFile::new("assets/reaction.html"))
+        .nest_service("/quiz", ServeFile::new("assets/quiz.html"))
         .nest_service("/assets", ServeDir::new("assets"))
         .layer(Extension(uib_router));
 
