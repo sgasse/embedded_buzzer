@@ -1,7 +1,7 @@
 use std::time::Duration;
 
-use common::Message;
-use postcard::{from_bytes, to_allocvec};
+use common::{Message, MsgBuffer};
+use postcard::to_allocvec;
 use tokio::{
     io::{AsyncReadExt, AsyncWriteExt},
     net::TcpStream,
@@ -11,25 +11,23 @@ use crate::UiBackendRouter;
 
 pub async fn process_incoming(mut socket: TcpStream, uib_router: UiBackendRouter) {
     let ui_tx = uib_router.frontend_tx.clone();
-    let mut buf = vec![0; 1000];
+    let mut buf = MsgBuffer::<2000>::default();
 
+    // TODO
     loop {
-        match socket.read(&mut buf).await {
-            Ok(num_read) => match from_bytes::<Message>(&buf[0..num_read]) {
-                Ok(message) => {
-                    println!("Board: {message:?}");
-                    ui_tx.send(message).ok();
-                }
-                Err(e) => {
-                    println!("Error in deserializing received message: {e}");
-                }
-            },
+        match socket.read(buf.as_buf()).await {
+            Ok(num_read) => {
+                buf.cursor += num_read;
+                buf.process_msgs_ok(|msg| {
+                    ui_tx.send(msg).ok();
+                });
+            }
             Err(e) => {
                 println!("Error on reading data: {e}");
                 return;
             }
         }
-        tokio::time::sleep(Duration::from_secs(1)).await;
+        tokio::time::sleep(Duration::from_millis(50)).await;
     }
 }
 

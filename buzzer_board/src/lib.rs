@@ -14,7 +14,6 @@ use heapless::mpmc::{Q16, Q64};
 use heapless::Vec;
 use rand_core::RngCore;
 
-pub mod buffer;
 pub mod button_task;
 pub mod leds;
 pub mod net;

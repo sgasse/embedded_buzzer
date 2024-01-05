@@ -1,8 +1,7 @@
 use core::sync::atomic::Ordering;
 
-use crate::buffer::NetBuffer;
 use crate::{singleton, NetPeripherals, BUTTON_PRESS_Q, INIT_TIME, LED_CHANGE_Q, THROTTLE_TIME};
-use common::{ButtonPress, Message};
+use common::{ButtonPress, Message, MsgBuffer};
 use defmt::*;
 use embassy_net::tcp::client::{TcpClient, TcpClientState};
 use embassy_net::{tcp::Error::ConnectionReset, Ipv4Address, Ipv4Cidr, Stack, StackResources};
@@ -84,7 +83,7 @@ pub async fn rx_task(stack: &'static Stack<Device>) -> ! {
 
         let mut connection = r.unwrap();
         info!("Receiver task connected!");
-        let mut net_buffer = NetBuffer::<2000, 300>::default();
+        let mut net_buffer = MsgBuffer::<2000>::default();
 
         let mut remaining_err_on_zero = 3;
 
