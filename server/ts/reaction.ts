@@ -1,14 +1,10 @@
+import { ButtonPress, clearTable, createTableRow, playAudio, setAllButtons } from "./common.js";
 import { ID_TO_SOUND, ID_TO_NAME } from "./idMap.js";
 
 var backend = new WebSocket(`ws://${location.host}/ws`);
 var already_pressed_set: Set<number> = new Set<number>();
 var randomCountdownMs: number = 0;
 var first = true;
-
-interface ButtonPress {
-    button_id: number;
-    millis_since_init: number;
-}
 
 const handleIncomingPress = (msg: MessageEvent<any>) => {
   console.log("Received message:", msg);
@@ -73,39 +69,4 @@ export function initReactionGame() {
         backend.send("Countdown finished");
 
     }, randomCountdownMs);
-}
-
-function clearTable(table: HTMLTableElement) {
-    table.innerHTML = table.rows[0].innerHTML;
-}
-
-function createTableRow(name: string, time: number): HTMLTableRowElement {
-    const newRow = document.createElement("tr");
-
-    const newName = document.createElement("td");
-    newName.appendChild(document.createTextNode(name));
-
-    const newTime = document.createElement("td");
-    newTime.appendChild(document.createTextNode(time.toFixed(0)));
-
-    newRow.appendChild(newName);
-    newRow.appendChild(newTime);
-
-    return newRow;
-}
-
-function playAudio(audioElement: HTMLAudioElement) {
-  if (audioElement.paused) {
-    audioElement.play();
-  } else {
-    audioElement.currentTime = 0;
-  }
-}
-
-function setAllButtons(backend: WebSocket, on: boolean) {
-  for (let i = 0; i < 6; i++) {
-    backend.send(
-      `{"LedUpdate": {"button_id": ${i}, "on": ${on}}}`
-    )
-  }
 }

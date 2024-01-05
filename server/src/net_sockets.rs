@@ -13,7 +13,6 @@ pub async fn process_incoming(mut socket: TcpStream, uib_router: UiBackendRouter
     let ui_tx = uib_router.frontend_tx.clone();
     let mut buf = MsgBuffer::<2000>::default();
 
-    // TODO
     loop {
         match socket.read(buf.as_buf()).await {
             Ok(num_read) => {
