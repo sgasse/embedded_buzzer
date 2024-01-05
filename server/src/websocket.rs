@@ -41,8 +41,10 @@ async fn process_websocket(stream: WebSocket, addr: SocketAddr, uib_router: UiBa
         loop {
             match ui_rx.recv().await {
                 Ok(msg) => {
-                    let msg = ws::Message::Text(serde_json::to_string(&msg).unwrap());
-                    if let Err(e) = sender.send(msg).await {
+                    let msg = serde_json::to_string(&msg).unwrap();
+                    println!("  To frontend (via {}): {}", addr, msg);
+
+                    if let Err(e) = sender.send(ws::Message::Text(msg)).await {
                         println!(
                             "Could not send to websocket client {addr}, dropping connection ({e})."
                         );
@@ -57,7 +59,7 @@ async fn process_websocket(stream: WebSocket, addr: SocketAddr, uib_router: UiBa
     // Loop until a text message is found.
     while let Some(Ok(message)) = receiver.next().await {
         if let ws::Message::Text(msg) = message {
-            println!("Frontend (via {}): {}", addr, msg);
+            println!("From frontend (via {}): {}", addr, msg);
 
             match serde_json::from_str(&msg) {
                 Ok(msg) => {
