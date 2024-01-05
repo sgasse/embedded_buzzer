@@ -7,6 +7,7 @@
     <div class="outer">
       <div class="title">Quiz</div>
       <button class="button" onclick="initQuizGame();">Start</button>
+      <button class="button" onclick="continueRound();">Continue</button>
       <div id="trigger">
         <div>GO!</div>
       </div>
@@ -22,20 +23,7 @@
         </div>
       </div>
 
-      <div class="too-early">
-        <div class="table-title">Too early...</div>
-        <div class="reaction-table-wrapper">
-          <table class="reaction-table" id="too-early-table">
-            <tr>
-              <th>Name</th>
-              <th>Time (ms)</th>
-            </tr>
-          </table>
-        </div>
-      </div>
-    </div>
-
-    <div class="disqualified">
+      <div class="disqualified">
         <div class="table-title">Disqualified</div>
         <div class="reaction-table-wrapper">
           <table class="reaction-table" id="disqualified-table">
@@ -94,7 +82,8 @@
     </audio>
   </body>
   <script type="module">
-    import { initQuizGame } from "/assets/generated/quiz.js";
+    import { initQuizGame, continueRound } from "/assets/generated/quiz.js";
     window.initQuizGame = initQuizGame;
+    window.continueRound = continueRound;
   </script>
 </html>
