@@ -6,15 +6,14 @@
   <body>
     <div class="outer">
       <div class="title">Quiz</div>
-      <button class="button" onclick="initQuizGame();">Start</button>
-      <button class="button" onclick="continueRound();">Continue</button>
-      <div id="trigger">
-        <div>GO!</div>
-      </div>
+      <button class="button rounded" onclick="initQuizGame();">Start</button>
+      <button class="button rounded" onclick="continueRound();">
+        Continue
+      </button>
       <div class="leaderboard">
-        <div class="table-title">Leaderboard</div>
+        <div class="table-title">Reactions</div>
         <div class="reaction-table-wrapper">
-          <table class="reaction-table" id="leader-table">
+          <table class="reaction-table rounded-corners" id="leader-table">
             <tr>
               <th>Name</th>
               <th>Time (ms)</th>
@@ -26,10 +25,9 @@
       <div class="disqualified">
         <div class="table-title">Disqualified</div>
         <div class="reaction-table-wrapper">
-          <table class="reaction-table" id="disqualified-table">
+          <table class="reaction-table rounded-corners" id="disqualified-table">
             <tr>
               <th>Name</th>
-              <th>Time (ms)</th>
             </tr>
           </table>
         </div>
