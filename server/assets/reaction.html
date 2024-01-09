@@ -6,14 +6,16 @@
   <body>
     <div class="outer">
       <div class="title">Reaction Game</div>
-      <button class="button" onclick="initReactionGame();">Start</button>
+      <button class="button rounded" onclick="initReactionGame();">
+        Start
+      </button>
       <div id="trigger">
-        <div>GO!</div>
+        <div>GO</div>
       </div>
       <div class="leaderboard">
-        <div class="table-title">Leaderboard</div>
+        <div class="table-title">Reactions</div>
         <div class="reaction-table-wrapper">
-          <table class="reaction-table" id="leader-table">
+          <table class="reaction-table rounded-corners" id="leader-table">
             <tr>
               <th>Name</th>
               <th>Time (ms)</th>
@@ -23,10 +25,10 @@
       </div>
 
       <div class="too-early">
-        <div class="table-title">Too early...</div>
+        <div class="table-title">Too early</div>
         <div class="reaction-table-wrapper">
-          <table class="reaction-table" id="too-early-table">
-            <tr>
+          <table class="reaction-table rounded-corners" id="too-early-table">
+            <tr">
               <th>Name</th>
               <th>Time (ms)</th>
             </tr>

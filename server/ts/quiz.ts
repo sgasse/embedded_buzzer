@@ -43,16 +43,13 @@ const handleIncomingPress = (msg: MessageEvent<any>) => {
 backend.addEventListener("message", handleIncomingPress);
 
 export function continueRound() {
-  let triggerElement = document.getElementById('trigger') as HTMLElement;
-  triggerElement.style.visibility = 'hidden';
-
   setAllButtons(backend, false);
 
   if (firstNumber != null) {
     disqualified_set.add(firstNumber);
 
     let buttonName: string = ID_TO_NAME[firstNumber] ?? 'Unknown';
-    const element = createTableRow(buttonName, 0);
+    const element = createTableRow(buttonName);
     document.getElementById('disqualified-table')?.appendChild(element);
   }
   firstNumber = null;
@@ -67,9 +64,6 @@ export function continueRound() {
 }
 
 export function initQuizGame() {
-    let triggerElement = document.getElementById('trigger') as HTMLElement;
-    triggerElement.style.visibility = 'hidden';
-
     setAllButtons(backend, false);
 
     firstNumber = null;

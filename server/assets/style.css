@@ -1,11 +1,18 @@
 :root {
-  --custom-green: #3ec795;
-  --csstricks-green: #4caf50;
+  --black-night: #0a090c;
+  --green-celadon: #94e8b4;
+  --red-murrey: #d37ba8;
+  --blue-steel: #3f7cac;
+  --yellow-apricot: #f7c4a5;
 }
 
 body {
   font-family: Arial, Helvetica, sans-serif;
   font-size: 20px;
+}
+
+.rounded {
+  border-radius: 10px;
 }
 
 .title {
@@ -23,7 +30,7 @@ body {
 }
 
 .button {
-  background-color: black;
+  background-color: var(--black-night);
   border: none;
   color: white;
   padding: 15px 32px;
@@ -33,11 +40,12 @@ body {
   font-size: 1em;
   margin: 4px 2px;
   cursor: pointer;
+  min-width: 400px;
 }
 
 .button:hover {
   background-color: lightgray;
-  color: black;
+  color: var(--black-night);
 }
 
 .table-title {
@@ -47,20 +55,22 @@ body {
 
 .leaderboard,
 .too-early,
-disqualified {
+.disqualified {
   display: flex;
   flex-direction: column;
   align-items: center;
 }
 
+.reaction-table-wrapper {
+  min-width: 400px;
+}
+
 .reaction-table {
-  border-collapse: collapse;
   width: 100%;
 }
 
 .reaction-table td,
 .reaction-table th {
-  border: 1px solid #ddd;
   padding: 8px;
 }
 
@@ -76,24 +86,24 @@ disqualified {
   padding-top: 12px;
   padding-bottom: 12px;
   text-align: left;
-  background-color: var(--custom-green);
-  color: white;
+  background-color: var(--green-celadon);
+  color: var(--black-night);
 }
 
 #too-early-table th {
-  background-color: rgb(173, 76, 11);
+  background-color: var(--red-murrey);
 }
 
 #disqualified-table th {
-  background-color: rgb(173, 76, 11);
+  background-color: var(--red-murrey);
 }
 
 #trigger {
   visibility: hidden;
-  background-color: var(--custom-green);
-  width: 80px;
-  height: 80px;
-  border-radius: 40px;
+  background-color: var(--yellow-apricot);
+  width: 160px;
+  height: 160px;
+  border-radius: 80px;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -108,4 +118,38 @@ disqualified {
   50% {
     opacity: 0;
   }
+}
+
+/* Copyright https://unused-css.com/blog/css-rounded-table-corners/ */
+table.rounded-corners {
+  /* Change these properties */
+  --border: 1px solid black;
+  border-radius: 10px;
+
+  /* Don't change these properties */
+  border-spacing: 0;
+  border-collapse: separate;
+  border: var(--border);
+  overflow: hidden;
+}
+
+/* Apply a border to the right of all but the last column */
+table.rounded-corners th:not(:last-child),
+table.rounded-corners td:not(:last-child) {
+  border-right: var(--border);
+}
+
+/* Apply a border to the bottom of all but the last row */
+table.rounded-corners > thead > tr:not(:last-child) > th,
+table.rounded-corners > thead > tr:not(:last-child) > td,
+table.rounded-corners > tbody > tr:not(:last-child) > th,
+table.rounded-corners > tbody > tr:not(:last-child) > td,
+table.rounded-corners > tfoot > tr:not(:last-child) > th,
+table.rounded-corners > tfoot > tr:not(:last-child) > td,
+table.rounded-corners > tr:not(:last-child) > td,
+table.rounded-corners > tr:not(:last-child) > th,
+table.rounded-corners > thead:not(:last-child),
+table.rounded-corners > tbody:not(:last-child),
+table.rounded-corners > tfoot:not(:last-child) {
+  border-bottom: var(--border);
 }
