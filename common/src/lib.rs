@@ -4,6 +4,8 @@ use defmt::{warn, Format};
 use postcard::take_from_bytes;
 use serde::{Deserialize, Serialize};
 
+pub const SERVER_ADDR: [u8; 4] = [192, 168, 100, 1];
+
 #[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq, Format)]
 pub enum Message {
     InitBoard,
