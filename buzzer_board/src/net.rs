@@ -1,7 +1,7 @@
 use core::sync::atomic::Ordering;
 
 use crate::{singleton, NetPeripherals, BUTTON_PRESS_Q, INIT_TIME, LED_CHANGE_Q, THROTTLE_TIME};
-use common::{ButtonPress, Message, MsgBuffer};
+use common::{ButtonPress, Message, MsgBuffer, SERVER_ADDR};
 use defmt::*;
 use embassy_net::tcp::client::{TcpClient, TcpClientState};
 use embassy_net::{tcp::Error::ConnectionReset, Ipv4Address, Ipv4Cidr, Stack, StackResources};
@@ -122,7 +122,7 @@ pub async fn tx_task(stack: &'static Stack<Device>) -> ! {
     let client = TcpClient::new(stack, &STATE);
 
     loop {
-        let addr = SocketAddr::V4(SocketAddrV4::new(Ipv4Addr::new(192, 168, 100, 1), 8000));
+        let addr = SocketAddr::V4(SocketAddrV4::new(Ipv4Addr::from(SERVER_ADDR), 8000));
 
         info!("Trying to connect sender task...");
         let r = client.connect(addr).await;

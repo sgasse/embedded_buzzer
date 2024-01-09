@@ -1,6 +1,10 @@
-use std::{net::SocketAddr, sync::Arc};
+use std::{
+    net::{Ipv4Addr, SocketAddr, SocketAddrV4},
+    sync::Arc,
+};
 
 use axum::{routing::get, Extension, Router};
+use common::SERVER_ADDR;
 use server::{
     net_sockets::{process_incoming, process_outgoing},
     websocket::ws_handler,
@@ -20,11 +24,15 @@ async fn main() {
         board_rx,
     });
 
+    let server_ip = Ipv4Addr::from(SERVER_ADDR);
+
     // Open sockets
     let uib_router_ = uib_router.clone();
     tokio::spawn(async move {
         let uib_router_ = uib_router_.clone();
-        let listener = TcpListener::bind("192.168.100.1:8000").await.unwrap();
+        let listener = TcpListener::bind(SocketAddrV4::new(server_ip, 8000))
+            .await
+            .unwrap();
 
         loop {
             let (socket, _) = listener.accept().await.unwrap();
@@ -35,7 +43,9 @@ async fn main() {
     let uib_router_ = uib_router.clone();
     tokio::spawn(async move {
         let uib_router_ = uib_router_.clone();
-        let send_to_board = TcpListener::bind("192.168.100.1:8001").await.unwrap();
+        let send_to_board = TcpListener::bind(SocketAddrV4::new(server_ip, 8001))
+            .await
+            .unwrap();
 
         loop {
             let (socket, _) = send_to_board.accept().await.unwrap();
