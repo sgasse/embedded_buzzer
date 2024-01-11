@@ -1,19 +1,19 @@
 use core::sync::atomic::Ordering;
 
-use crate::{singleton, NetPeripherals, BUTTON_PRESS_Q, INIT_TIME, LED_CHANGE_Q, THROTTLE_TIME};
+use crate::{Irqs, NetPeripherals, BUTTON_PRESS_Q, INIT_TIME, LED_CHANGE_Q, THROTTLE_TIME};
 use common::{ButtonPress, Message, MsgBuffer, SERVER_ADDR};
 use defmt::*;
 use embassy_net::tcp::client::{TcpClient, TcpClientState};
 use embassy_net::{tcp::Error::ConnectionReset, Ipv4Address, Ipv4Cidr, Stack, StackResources};
 use embassy_stm32::eth::PacketQueue;
 use embassy_stm32::eth::{generic_smi::GenericSMI, Ethernet};
-use embassy_stm32::interrupt;
 use embassy_stm32::peripherals::ETH;
 use embassy_time::{Duration, Instant, Timer};
-use embedded_io::asynch::{Read, Write};
+use embedded_io_async::{Read, Write};
 use embedded_nal_async::{Ipv4Addr, SocketAddr, SocketAddrV4, TcpConnect};
 use heapless::Vec;
-use postcard::to_vec;
+use postcard::to_slice;
+use static_cell::StaticCell;
 
 pub type Device = Ethernet<'static, ETH, GenericSMI>;
 
@@ -23,13 +23,14 @@ pub async fn net_task(stack: &'static Stack<Device>) -> ! {
 }
 
 pub fn init_net_stack(net_p: NetPeripherals, seed: u64) -> &'static Stack<Device> {
-    let eth_int = interrupt::take!(ETH);
     let mac_addr = [0x00, 0x00, 0xDE, 0xAD, 0xBE, 0xEF];
 
+    static PACKETS: StaticCell<PacketQueue<16, 16>> = StaticCell::new();
+
     let device = Ethernet::new(
-        singleton!(PacketQueue::<16, 16>::new()),
+        PACKETS.init(PacketQueue::<16, 16>::new()),
         net_p.eth,
-        eth_int,
+        Irqs,
         net_p.pa1,
         net_p.pc3,
         net_p.pa2,
@@ -44,31 +45,31 @@ pub fn init_net_stack(net_p: NetPeripherals, seed: u64) -> &'static Stack<Device
         net_p.pc2,
         net_p.pe2,
         net_p.pg11,
-        GenericSMI,
+        GenericSMI::new(1),
         mac_addr,
-        1,
     );
 
     // Set laptop IP to 192.168.100.1 and listen with `netcat -l 8000`
-    let config = embassy_net::Config::Static(embassy_net::StaticConfig {
+    let config = embassy_net::Config::ipv4_static(embassy_net::StaticConfigV4 {
         address: Ipv4Cidr::new(Ipv4Address::new(192, 168, 100, 5), 24),
         dns_servers: Vec::new(),
         gateway: Some(Ipv4Address::new(192, 168, 100, 1)),
     });
 
-    // Init network stack
-    &*singleton!(Stack::new(
+    static STACK: StaticCell<Stack<Device>> = StaticCell::new();
+    static RESOURCES: StaticCell<StackResources<3>> = StaticCell::new();
+    &*STACK.init(Stack::new(
         device,
         config,
-        singleton!(StackResources::<2>::new()),
-        seed
+        RESOURCES.init(StackResources::<3>::new()),
+        seed,
     ))
 }
 
 #[embassy_executor::task]
 pub async fn rx_task(stack: &'static Stack<Device>) -> ! {
-    static STATE: TcpClientState<1, 1024, 1024> = TcpClientState::new();
-    let client = TcpClient::new(stack, &STATE);
+    let state: TcpClientState<1, 1024, 1024> = TcpClientState::new();
+    let client = TcpClient::new(stack, &state);
 
     'outer: loop {
         let addr = SocketAddr::V4(SocketAddrV4::new(Ipv4Addr::new(192, 168, 100, 1), 8001));
@@ -118,8 +119,8 @@ pub async fn rx_task(stack: &'static Stack<Device>) -> ! {
 
 #[embassy_executor::task]
 pub async fn tx_task(stack: &'static Stack<Device>) -> ! {
-    static STATE: TcpClientState<1, 1024, 1024> = TcpClientState::new();
-    let client = TcpClient::new(stack, &STATE);
+    let state: TcpClientState<1, 1024, 1024> = TcpClientState::new();
+    let client = TcpClient::new(stack, &state);
 
     loop {
         let addr = SocketAddr::V4(SocketAddrV4::new(Ipv4Addr::from(SERVER_ADDR), 8000));
@@ -156,9 +157,10 @@ pub async fn tx_task(stack: &'static Stack<Device>) -> ! {
 
                     debug!("Sending message: {:?}", message);
 
-                    let serialized: Vec<u8, 30> = to_vec(&message).unwrap();
+                    let mut serialized = [0u8; 32];
+                    let serialized = to_slice(&message, &mut serialized).unwrap();
 
-                    let r = connection.write_all(&serialized).await;
+                    let r = connection.write_all(serialized).await;
                     if let Err(e) = r {
                         info!("write error: {:?}", e);
 

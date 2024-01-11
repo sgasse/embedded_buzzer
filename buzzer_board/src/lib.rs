@@ -6,9 +6,10 @@ use core::sync::atomic::AtomicU32;
 use common::LedUpdate;
 use embassy_stm32::gpio::{AnyPin, Output};
 use embassy_stm32::peripherals::{
-    ETH, PA1, PA2, PA7, PB0, PB1, PC1, PC2, PC3, PC4, PC5, PE2, PG11, PG12, PG13, RNG,
+    self, ETH, PA1, PA2, PA7, PB0, PB1, PC1, PC2, PC3, PC4, PC5, PE2, PG11, PG12, PG13, RNG,
 };
 use embassy_stm32::rng::Rng;
+use embassy_stm32::{bind_interrupts, eth, rng};
 use embassy_time::Duration;
 use heapless::mpmc::{Q16, Q64};
 use heapless::Vec;
@@ -24,23 +25,17 @@ pub static BUTTON_PRESS_Q: Q64<(u8, u64)> = Q64::new();
 pub static LED_CHANGE_Q: Q16<LedUpdate> = Q16::new();
 
 pub const THROTTLE_TIME: Duration = Duration::from_millis(10);
-
-#[macro_export]
-macro_rules! singleton {
-    ($val:expr) => {{
-        type T = impl Sized;
-        static STATIC_CELL: static_cell::StaticCell<T> = static_cell::StaticCell::new();
-        let (x,) = STATIC_CELL.init(($val,));
-        x
-    }};
-}
-
 pub static INIT_TIME: AtomicU32 = AtomicU32::new(0);
 
 pub const NUM_LEDS: usize = 6;
 
+bind_interrupts!(pub struct Irqs {
+    ETH => eth::InterruptHandler;
+    RNG => rng::InterruptHandler<peripherals::RNG>;
+});
+
 pub fn gen_random_seed(rng: RNG) -> u64 {
-    let mut rng = Rng::new(rng);
+    let mut rng = Rng::new(rng, Irqs);
     let mut seed = [0; 8];
     rng.fill_bytes(&mut seed);
     u64::from_le_bytes(seed)
