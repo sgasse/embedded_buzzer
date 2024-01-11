@@ -5,23 +5,42 @@
 use buzzer_board::button_task::debounced_button_presses;
 use buzzer_board::leds::led_task;
 use buzzer_board::net::{init_net_stack, net_task, rx_task, tx_task};
-use buzzer_board::{create_net_peripherals, gen_random_seed, singleton, NUM_LEDS};
+use buzzer_board::{create_net_peripherals, gen_random_seed, NUM_LEDS};
 use defmt::*;
 use embassy_executor::Spawner;
 use embassy_stm32::exti::Channel;
 use embassy_stm32::gpio::{AnyPin, Level, Output, Pin, Speed};
-use embassy_stm32::time::mhz;
 use embassy_stm32::Config;
 use embassy_time::{Duration, Timer};
 use heapless::Vec;
+use static_cell::make_static;
 use {defmt_rtt as _, panic_probe as _};
 
 #[embassy_executor::main]
 async fn main(spawner: Spawner) -> ! {
     let mut config = Config::default();
-    config.rcc.sys_ck = Some(mhz(400));
-    config.rcc.hclk = Some(mhz(200));
-    config.rcc.pll1.q_ck = Some(mhz(100));
+    {
+        use embassy_stm32::rcc::*;
+        config.rcc.hsi = Some(HSIPrescaler::DIV1);
+        config.rcc.csi = true;
+        config.rcc.hsi48 = Some(Default::default()); // needed for RNG
+        config.rcc.pll1 = Some(Pll {
+            source: PllSource::HSI,
+            prediv: PllPreDiv::DIV4,
+            mul: PllMul::MUL50,
+            divp: Some(PllDiv::DIV2),
+            divq: None,
+            divr: None,
+        });
+        config.rcc.sys = Sysclk::PLL1_P; // 400 Mhz
+        config.rcc.ahb_pre = AHBPrescaler::DIV2; // 200 Mhz
+        config.rcc.apb1_pre = APBPrescaler::DIV2; // 100 Mhz
+        config.rcc.apb2_pre = APBPrescaler::DIV2; // 100 Mhz
+        config.rcc.apb3_pre = APBPrescaler::DIV2; // 100 Mhz
+        config.rcc.apb4_pre = APBPrescaler::DIV2; // 100 Mhz
+        config.rcc.voltage_scale = VoltageScale::Scale1;
+    }
+
     let p = embassy_stm32::init(config);
 
     let seed = gen_random_seed(p.RNG);
@@ -43,7 +62,8 @@ async fn main(spawner: Spawner) -> ! {
             .ok();
     }
 
-    let led_outputs: &'static mut Vec<Output<'static, AnyPin>, NUM_LEDS> = singleton!(led_outputs);
+    let led_outputs: &'static mut Vec<Output<'static, AnyPin>, NUM_LEDS> =
+        make_static!(led_outputs);
     unwrap!(spawner.spawn(led_task(led_outputs)));
 
     let net_p = create_net_peripherals!(p);
