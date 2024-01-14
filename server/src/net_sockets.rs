@@ -1,5 +1,3 @@
-use std::time::Duration;
-
 use common::{Message, MsgBuffer};
 use postcard::to_allocvec;
 use tokio::{
@@ -9,47 +7,53 @@ use tokio::{
 
 use crate::UiBackendRouter;
 
-pub async fn process_incoming(mut socket: TcpStream, uib_router: UiBackendRouter) {
+pub async fn board_connection(mut socket: TcpStream, uib_router: UiBackendRouter) {
+    let (mut reader, mut writer) = socket.split();
+
+    // Get server channels.
     let ui_tx = uib_router.frontend_tx.clone();
-    let mut buf = MsgBuffer::<2000>::default();
+    let mut board_rx = uib_router.board_rx.resubscribe();
 
-    loop {
-        match socket.read(buf.as_buf()).await {
-            Ok(num_read) => {
-                buf.cursor += num_read;
-                buf.process_msgs_ok(|msg| {
-                    ui_tx.send(msg).ok();
-                });
-            }
-            Err(e) => {
-                println!("Error on reading data: {e}");
-                return;
-            }
-        }
-        tokio::time::sleep(Duration::from_millis(50)).await;
-    }
-}
+    // Initialize buffer to read messages to.
+    let mut read_buf = MsgBuffer::<2000>::default();
 
-pub async fn process_outgoing(mut socket: TcpStream, uib_router: UiBackendRouter) {
-    let init_game = Message::InitBoard;
-    let serialized = to_allocvec(&init_game).unwrap();
-    if let Err(e) = socket.write_all(&serialized).await {
+    // Send init instruction.
+    let serialized = to_allocvec(&Message::InitBoard).unwrap();
+    if let Err(e) = writer.write_all(&serialized).await {
         println!("Error in sending init data: {e}");
     }
 
-    let mut board_rx = uib_router.board_rx.resubscribe();
     loop {
-        match board_rx.recv().await {
-            Ok(msg) => match socket.write_all(&to_allocvec(&msg).unwrap()).await {
-                Ok(()) => {}
-                Err(e) => {
-                    println!("Error in writing: {e}");
-                    return;
+        tokio::select! {
+            read = reader.read(read_buf.as_buf()) => {
+                match read {
+                    Ok(num_read) => {
+                        read_buf.cursor += num_read;
+                        read_buf.process_msgs_ok(|msg| {
+                            ui_tx.send(msg).ok();
+                        });
+                    }
+                    Err(e) => {
+                        println!("Error in reading data: {e}");
+                        return;
+                    }
+                }
+            }
+            recv = board_rx.recv() => {
+                match recv {
+                    Ok(msg) => match writer.write_all(&to_allocvec(&msg).unwrap()).await {
+                        Ok(()) => {}
+                        Err(e) => {
+                            println!("Error in writing: {e}");
+                            return;
+                        }
+                    },
+                    Err(e) => {
+                        println!("Error in receiving from channel: {e}");
+                        return;
+                    }
                 }
             },
-            Err(e) => {
-                println!("Error in receiving from board_rx: {e}");
-            }
         }
     }
 }

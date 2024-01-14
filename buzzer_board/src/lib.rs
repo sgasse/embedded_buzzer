@@ -10,8 +10,10 @@ use embassy_stm32::peripherals::{
 };
 use embassy_stm32::rng::Rng;
 use embassy_stm32::{bind_interrupts, eth, rng};
+use embassy_sync::blocking_mutex::raw::NoopRawMutex;
+use embassy_sync::channel::Channel;
 use embassy_time::Duration;
-use heapless::mpmc::{Q16, Q64};
+use heapless::mpmc::Q16;
 use heapless::Vec;
 use rand_core::RngCore;
 
@@ -19,14 +21,22 @@ pub mod button_task;
 pub mod leds;
 pub mod net;
 
-pub type LedOutputs = &'static mut Vec<Output<'static, AnyPin>, NUM_LEDS>;
+/// Initialized led output pins.
+pub type LedOutputs = Vec<Output<'static, AnyPin>, NUM_LEDS>;
 
-pub static BUTTON_PRESS_Q: Q64<(u8, u64)> = Q64::new();
+/// Channel of button presses.
+pub type ButtonChannel = Channel<NoopRawMutex, (u8, u64), 64>;
+
+/// Queue of led changes.
 pub static LED_CHANGE_Q: Q16<LedUpdate> = Q16::new();
 
+/// Busy-loop throttle time for tasks.
 pub const THROTTLE_TIME: Duration = Duration::from_millis(10);
+
+/// Game initialization time.
 pub static INIT_TIME: AtomicU32 = AtomicU32::new(0);
 
+/// Number of led pins.
 pub const NUM_LEDS: usize = 6;
 
 bind_interrupts!(pub struct Irqs {

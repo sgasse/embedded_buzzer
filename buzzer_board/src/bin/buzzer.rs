@@ -4,13 +4,15 @@
 
 use buzzer_board::button_task::debounced_button_presses;
 use buzzer_board::leds::led_task;
-use buzzer_board::net::{init_net_stack, net_task, rx_task, tx_task};
-use buzzer_board::{create_net_peripherals, gen_random_seed, NUM_LEDS};
+use buzzer_board::net::{init_net_stack, net_task, tcp_task};
+use buzzer_board::{create_net_peripherals, gen_random_seed, ButtonChannel, LedOutputs, NUM_LEDS};
 use defmt::*;
 use embassy_executor::Spawner;
-use embassy_stm32::exti::Channel;
+use embassy_stm32::exti::Channel as _;
 use embassy_stm32::gpio::{AnyPin, Level, Output, Pin, Speed};
 use embassy_stm32::Config;
+use embassy_sync::blocking_mutex::raw::NoopRawMutex;
+use embassy_sync::channel::Channel;
 use embassy_time::{Duration, Timer};
 use heapless::Vec;
 use static_cell::make_static;
@@ -46,6 +48,9 @@ async fn main(spawner: Spawner) -> ! {
 
     let seed = gen_random_seed(p.RNG);
 
+    let button_channel = Channel::<NoopRawMutex, (u8, u64), 64>::new();
+    let button_channel: &'static ButtonChannel = make_static!(button_channel);
+
     // Configure LED pins
     let led_pins: [AnyPin; NUM_LEDS] = [
         p.PA6.degrade(),
@@ -63,30 +68,32 @@ async fn main(spawner: Spawner) -> ! {
             .ok();
     }
 
-    let led_outputs: &'static mut Vec<Output<'static, AnyPin>, NUM_LEDS> =
-        make_static!(led_outputs);
+    let led_outputs: &'static mut LedOutputs = make_static!(led_outputs);
     unwrap!(spawner.spawn(led_task(led_outputs)));
 
     let net_p = create_net_peripherals!(p);
     let stack = init_net_stack(net_p, seed);
 
-    // Launch network task
+    // Launch network task.
     unwrap!(spawner.spawn(net_task(&stack)));
-    info!("Network task initialized");
 
-    unwrap!(spawner.spawn(rx_task(&stack)));
-    unwrap!(spawner.spawn(tx_task(&stack)));
+    // Launch TCP connection task.
+    unwrap!(spawner.spawn(tcp_task(&stack, button_channel)));
 
-    unwrap!(spawner.spawn(debounced_button_presses([
-        (p.PG3.degrade(), p.EXTI3.degrade()),
-        (p.PK1.degrade(), p.EXTI1.degrade()),
-        (p.PE6.degrade(), p.EXTI6.degrade()),
-        (p.PB7.degrade(), p.EXTI7.degrade()),
-        (p.PH15.degrade(), p.EXTI15.degrade()),
-        (p.PB4.degrade(), p.EXTI4.degrade()),
+    // Launch button press task.
+    unwrap!(spawner.spawn(debounced_button_presses(
+        [
+            (p.PG3.degrade(), p.EXTI3.degrade()),
+            (p.PK1.degrade(), p.EXTI1.degrade()),
+            (p.PE6.degrade(), p.EXTI6.degrade()),
+            (p.PB7.degrade(), p.EXTI7.degrade()),
+            (p.PH15.degrade(), p.EXTI15.degrade()),
+            (p.PB4.degrade(), p.EXTI4.degrade()),
+        ],
         // Blue onboard user button `B1`
         (p.PC13.degrade(), p.EXTI13.degrade()),
-    ])));
+        button_channel
+    )));
 
     loop {
         Timer::after(Duration::from_secs(1)).await;

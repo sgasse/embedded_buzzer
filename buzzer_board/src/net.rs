@@ -1,16 +1,16 @@
 use core::sync::atomic::Ordering;
 
-use crate::{Irqs, NetPeripherals, BUTTON_PRESS_Q, INIT_TIME, LED_CHANGE_Q, THROTTLE_TIME};
-use common::{ButtonPress, Message, MsgBuffer, SERVER_ADDR};
+use crate::{ButtonChannel, Irqs, NetPeripherals, INIT_TIME, LED_CHANGE_Q};
+use common::{ButtonPress, Message, MsgBuffer};
 use defmt::*;
-use embassy_net::tcp::client::{TcpClient, TcpClientState};
+use embassy_futures::select::{select, Either};
+use embassy_net::tcp::TcpSocket;
 use embassy_net::{tcp::Error::ConnectionReset, Ipv4Address, Ipv4Cidr, Stack, StackResources};
 use embassy_stm32::eth::PacketQueue;
 use embassy_stm32::eth::{generic_smi::GenericSMI, Ethernet};
 use embassy_stm32::peripherals::ETH;
 use embassy_time::{Duration, Instant, Timer};
-use embedded_io_async::{Read, Write};
-use embedded_nal_async::{Ipv4Addr, SocketAddr, SocketAddrV4, TcpConnect};
+use embedded_io_async::Write;
 use heapless::Vec;
 use postcard::to_slice;
 use static_cell::StaticCell;
@@ -67,87 +67,69 @@ pub fn init_net_stack(net_p: NetPeripherals, seed: u64) -> &'static Stack<Device
 }
 
 #[embassy_executor::task]
-pub async fn rx_task(stack: &'static Stack<Device>) -> ! {
-    let state: TcpClientState<1, 1024, 1024> = TcpClientState::new();
-    let client = TcpClient::new(stack, &state);
+pub async fn tcp_task(stack: &'static Stack<Device>, button_channel: &'static ButtonChannel) -> ! {
+    let mut tx_buf = [0u8; 1024];
+    let mut rx_buf = [0u8; 1024];
+
+    let endpoint_ip = embassy_net::IpAddress::Ipv4(Ipv4Address([192, 168, 100, 1]));
+    let endpoint = embassy_net::IpEndpoint::new(endpoint_ip, 8000);
 
     'outer: loop {
-        let addr = SocketAddr::V4(SocketAddrV4::new(Ipv4Addr::new(192, 168, 100, 1), 8001));
+        info!("Connecting TCP socket to {:?}", endpoint);
+        let mut tcp_socket = TcpSocket::new(stack, &mut rx_buf, &mut tx_buf);
 
-        info!("Trying to connect receiver task...");
-        let r = client.connect(addr).await;
-        if let Err(e) = r {
-            error!("Connection error: {:?}", e);
+        if let Err(e) = tcp_socket.connect(endpoint).await {
+            warn!("Failed to connect to endpoint {:?}: {}", &endpoint, e);
             Timer::after(Duration::from_secs(1)).await;
-            continue;
+            continue 'outer;
         }
 
-        let mut connection = r.unwrap();
-        info!("Receiver task connected!");
-        let mut net_buffer = MsgBuffer::<2000>::default();
+        let (mut reader, mut writer) = tcp_socket.split();
 
+        // Reader state
+        let mut msg_buffer = MsgBuffer::<1024>::default();
         let mut remaining_err_on_zero = 3;
 
-        loop {
-            match connection.read(net_buffer.as_buf()).await {
-                Ok(0) => {
-                    // Nothing new read, try to deserialize.
-                    if !net_buffer.process_msgs_ok(handle_message) {
-                        if remaining_err_on_zero <= 0 {
-                            warn!("Reconnecting");
+        // Writer state
+        let mut serialize_buffer = [0u8; 128];
+
+        'inner: loop {
+            // Create futures for reading and receivng a button press update.
+            let read_fut = reader.read(msg_buffer.as_buf());
+            let button_fut = button_channel.receive();
+
+            match select(read_fut, button_fut).await {
+                Either::First(read_res) => match read_res {
+                    Ok(0) => {
+                        // Nothing new read, try to deserialize.
+                        if !msg_buffer.process_msgs_ok(handle_message) {
+                            if remaining_err_on_zero <= 0 {
+                                warn!("Reconnecting");
+                                continue 'outer;
+                            }
+                            remaining_err_on_zero -= 1;
+                        }
+                    }
+                    Ok(num_read) => {
+                        msg_buffer.cursor += num_read;
+                        msg_buffer.process_msgs_ok(handle_message);
+                    }
+                    Err(e) => {
+                        warn!("Error while reading: {}", e);
+                        if e == ConnectionReset {
                             continue 'outer;
                         }
-                        remaining_err_on_zero -= 1;
                     }
-
-                    Timer::after(Duration::from_millis(30)).await;
-                }
-                Ok(num_read) => {
-                    net_buffer.cursor += num_read;
-                    net_buffer.process_msgs_ok(handle_message);
-                }
-                Err(e) => {
-                    warn!("Error while reading: {}", e);
-                    if e == ConnectionReset {
-                        break;
-                    }
-                }
-            }
-        }
-    }
-}
-
-#[embassy_executor::task]
-pub async fn tx_task(stack: &'static Stack<Device>) -> ! {
-    let state: TcpClientState<1, 1024, 1024> = TcpClientState::new();
-    let client = TcpClient::new(stack, &state);
-
-    loop {
-        let addr = SocketAddr::V4(SocketAddrV4::new(Ipv4Addr::from(SERVER_ADDR), 8000));
-
-        info!("Trying to connect sender task...");
-        let r = client.connect(addr).await;
-        if let Err(e) = r {
-            error!("Connection error: {:?}", e);
-            Timer::after(Duration::from_secs(1)).await;
-            continue;
-        }
-
-        let mut connection = r.unwrap();
-        info!("Sender task connected!");
-
-        loop {
-            let reset_time = INIT_TIME.load(Ordering::Acquire);
-            match BUTTON_PRESS_Q.dequeue() {
-                None => Timer::after(THROTTLE_TIME).await,
-                Some((button_id, press_time)) => {
-                    let millis_since_init = (press_time as u32).saturating_sub(reset_time);
+                },
+                Either::Second((button_id, press_time)) => {
+                    let millis_since_init =
+                        (press_time as u32).saturating_sub(INIT_TIME.load(Ordering::Acquire));
                     if millis_since_init == 0 {
                         warn!(
                             "Button press {} registered before last reset, skipping",
                             button_id
                         );
-                        continue;
+                        continue 'inner;
                     }
 
                     let message = Message::ButtonPress(ButtonPress {
@@ -157,18 +139,17 @@ pub async fn tx_task(stack: &'static Stack<Device>) -> ! {
 
                     debug!("Sending message: {:?}", message);
 
-                    let mut serialized = [0u8; 32];
-                    let serialized = to_slice(&message, &mut serialized).unwrap();
+                    let serialized = to_slice(&message, &mut serialize_buffer).unwrap();
 
-                    let r = connection.write_all(serialized).await;
+                    let r = writer.write_all(serialized).await;
                     if let Err(e) = r {
-                        info!("write error: {:?}", e);
+                        warn!("write error: {:?}", e);
 
                         if e == ConnectionReset {
-                            break;
+                            continue 'outer;
                         }
 
-                        continue;
+                        continue 'inner;
                     }
                 }
             }
