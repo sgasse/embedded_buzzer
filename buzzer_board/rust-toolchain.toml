@@ -1,13 +1,4 @@
 [toolchain]
 channel = "nightly-2024-01-15"
 components = ["rust-src", "rustfmt"]
-targets = [
-    "thumbv7em-none-eabi",
-    "thumbv7m-none-eabi",
-    "thumbv6m-none-eabi",
-    "thumbv7em-none-eabihf",
-    "thumbv8m.main-none-eabihf",
-    "riscv32imac-unknown-none-elf",
-    "wasm32-unknown-unknown",
-    # "thumbv7em-none-eabihf", # Cortex-M4F and Cortex-M7F (with FPU)
-]
+targets = ["thumbv7em-none-eabihf"]
