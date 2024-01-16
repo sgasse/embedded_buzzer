@@ -39,6 +39,7 @@ async fn main(spawner: Spawner) -> ! {
         config.rcc.apb3_pre = APBPrescaler::DIV2; // 100 Mhz
         config.rcc.apb4_pre = APBPrescaler::DIV2; // 100 Mhz
         config.rcc.voltage_scale = VoltageScale::Scale1;
+        config.rcc.supply_config = SupplyConfig::DirectSMPS;
     }
 
     let p = embassy_stm32::init(config);

@@ -32,7 +32,8 @@ embassy-executor = { git = "https://github.com/embassy-rs/embassy.git", features
     "defmt",
     "executor-thread",
     "integrated-timers",
-    "nightly",
+    "task-arena-size-8192",
+    # "nightly",
 ] }
 embassy-net = { git = "https://github.com/embassy-rs/embassy.git", features = [
     "defmt",
